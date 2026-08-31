@@ -92,6 +92,8 @@ export interface WordEntry {
 // ─── Yerel Kalıcı Veri (localStorage) ────────────────────────────────────────
 
 export interface Profile {
+  /** Oyuncuyu arkadaş ekleme ve online davetlerde tanımlayan sabit kod. */
+  playerId: string
   username: string
   avatar: string
   frame: string | null
@@ -132,6 +134,8 @@ export interface QuestState {
 }
 
 export interface LeaderboardEntry {
+  /** Online sıralamada benzersiz oyuncu kimliği. Eski yerel kayıtlar boş olabilir. */
+  playerId?: string
   username: string
   wins: number
   xp: number
@@ -147,6 +151,8 @@ export interface Achievement {
   title: string
   emoji: string
   desc: string
+  accent?: string
+  reward?: { type: 'avatar' | 'frame'; id: string; label: string }
   /** Stat bazlı koşul: { stat: keyof Stats, op: '>=', value: number } */
   condition: {
     stat: keyof Stats
@@ -191,6 +197,8 @@ export interface Settings {
   sound: boolean
   music: boolean
   haptics: boolean
+  highContrast: boolean
+  largeText: boolean
   /** Oyun içi varsayılan ayarlar (lobby'de değiştirilebilir). */
   defaultTurnTimeLimit: number
   defaultRoundsBeforeVoting: number

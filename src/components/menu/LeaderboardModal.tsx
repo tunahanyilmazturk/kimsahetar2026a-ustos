@@ -20,7 +20,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
   const stats = statsApi.get()
 
   // Mevcut oyuncunun sırasını bul
-  const myIndex = entries.findIndex((e) => e.username === profile.username)
+  const myIndex = entries.findIndex((e) => e.playerId === profile.playerId || (!e.playerId && e.username === profile.username))
   const myEntry = myIndex >= 0 ? entries[myIndex] : null
 
   const handleClear = () => {
@@ -40,7 +40,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
       title={
         <span className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-amber-400" />
-          Yerel Liderlik
+          Liderlik Tablosu
         </span>
       }
       size="md"
@@ -83,6 +83,10 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
         </div>
       ) : (
         <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-cyan-400/15 bg-cyan-500/5 px-3 py-2 text-xs">
+            <span className="text-slate-400">Online sıralama oyuncu ID’siyle eşleşir</span>
+            <span className="font-mono text-cyan-300">{profile.playerId}</span>
+          </div>
           {/* ─── Senin sıralaman ──────────────────────────────────────── */}
           {myEntry && (
             <div className="rounded-xl bg-indigo-500/10 ring-1 ring-indigo-500/30 px-4 py-2.5">
@@ -103,7 +107,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
             <div className="grid grid-cols-3 gap-2">
               {top3.map((e, i) => {
                 const place = i + 1
-                const isMe = e.username === profile.username
+                const isMe = e.playerId === profile.playerId || (!e.playerId && e.username === profile.username)
                 const icon =
                   place === 1 ? (
                     <Crown className="h-5 w-5 text-amber-400" />
@@ -121,7 +125,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
                       : 'ring-amber-700/40 bg-amber-700/10'
                 return (
                   <motion.div
-                    key={e.username}
+                    key={e.playerId ?? e.username}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.08 }}
@@ -154,7 +158,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
           {rest.length > 0 && (
             <div className="space-y-1.5">
               {rest.map((e, i) => (
-                <LeaderboardRow key={e.username} entry={e} rank={i + 4} isMe={e.username === profile.username} />
+                <LeaderboardRow key={e.playerId ?? e.username} entry={e} rank={i + 4} isMe={e.playerId === profile.playerId || (!e.playerId && e.username === profile.username)} />
               ))}
             </div>
           )}
@@ -207,6 +211,7 @@ function LeaderboardRow({ entry, rank, isMe }: { entry: LeaderboardEntry; rank: 
           {entry.username}{isMe && ' (sen)'}
         </p>
         <div className="flex items-center gap-2 text-[10px] text-slate-500">
+          {entry.playerId && <span className="font-mono text-cyan-400/80">{entry.playerId}</span>}
           <span className="inline-flex items-center gap-0.5">
             <Gamepad2 className="h-3 w-3" />
             {entry.gamesPlayed}

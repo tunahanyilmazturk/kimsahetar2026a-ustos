@@ -68,7 +68,7 @@ export function Modal({
           aria-modal="true"
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-slate-950/80" />
 
           {/* Kart */}
           <motion.div
@@ -100,7 +100,7 @@ export function Modal({
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            <div className="min-w-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
             {footer && (
               <div className="shrink-0 border-t border-slate-800 px-5 py-3 flex items-center justify-end gap-2">

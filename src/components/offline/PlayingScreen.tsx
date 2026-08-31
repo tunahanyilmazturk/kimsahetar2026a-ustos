@@ -66,6 +66,8 @@ export function PlayingScreen({
   const [phase, setPhase] = useState<'pass' | 'write'>(() => (players[turnIndex]?.isBot ? 'write' : 'pass'))
   const [hintText, setHintText] = useState('')
   const [timeLeft, setTimeLeft] = useState(settings.turnTimeLimit)
+  const [confirmVoting, setConfirmVoting] = useState(false)
+  const timedOutRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const currentPlayer = players[turnIndex]
@@ -86,9 +88,12 @@ export function PlayingScreen({
       stopTimer()
       return
     }
+    timedOutRef.current = false
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
+          if (timedOutRef.current) return 0
+          timedOutRef.current = true
           stopTimer()
           // Süre doldu → otomatik pas (eğer pas hakkı varsa) veya boş ipucu
           if (canPass) {
@@ -311,17 +316,23 @@ export function PlayingScreen({
       )}
 
       {/* ─── Oylama başlat ──────────────────────────────────────────── */}
-      {canStartVoting && (
+      {canStartVoting && !confirmVoting && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-2"
         >
-          <Button variant="danger" fullWidth size="sm" onClick={onStartVoting}>
+          <Button variant="danger" fullWidth size="sm" onClick={() => setConfirmVoting(true)}>
             <Vote className="h-4 w-4" />
             Oylamayı Başlat
           </Button>
         </motion.div>
+      )}
+      {canStartVoting && confirmVoting && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setConfirmVoting(false)}>Vazgeç</Button>
+          <Button variant="danger" size="sm" onClick={onStartVoting}>Evet, Oyla</Button>
+        </div>
       )}
     </div>
   )

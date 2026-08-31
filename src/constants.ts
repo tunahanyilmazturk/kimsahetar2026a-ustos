@@ -233,6 +233,27 @@ export const WORD_POOL: WordEntry[] = [
   { word: 'Hoverkraft', hint: 'Hava yastıklı taşıt', category: 'Taşıtlar', difficulty: 'HARD' },
   { word: 'Denizaltı', hint: 'Su altı taşıtı', category: 'Taşıtlar', difficulty: 'HARD' },
   { word: 'Balon', hint: 'Hava taşıtı', category: 'Taşıtlar', difficulty: 'HARD' },
+
+  // ─── Yeni Kategoriler ─────────────────────────────────────────────────────
+  { word: 'Kamera', hint: 'Görüntü kaydeder', category: 'Filmler', difficulty: 'EASY' },
+  { word: 'Sahne', hint: 'Oyuncuların bulunduğu yer', category: 'Filmler', difficulty: 'EASY' },
+  { word: 'Senaryo', hint: 'Hikâye metni', category: 'Filmler', difficulty: 'MEDIUM' },
+  { word: 'Fragman', hint: 'Film ön gösterimi', category: 'Filmler', difficulty: 'MEDIUM' },
+  { word: 'Animasyon', hint: 'Çizimlerin canlandırılması', category: 'Filmler', difficulty: 'HARD' },
+  { word: 'Roket', hint: 'Uzaya giden araç', category: 'Bilim', difficulty: 'EASY' },
+  { word: 'Mikroskop', hint: 'Küçük şeyleri büyütür', category: 'Bilim', difficulty: 'EASY' },
+  { word: 'Laboratuvar', hint: 'Deney yapılan yer', category: 'Bilim', difficulty: 'MEDIUM' },
+  { word: 'Yerçekimi', hint: 'Cisimleri aşağı çeker', category: 'Bilim', difficulty: 'MEDIUM' },
+  { word: 'DNA', hint: 'Genetik bilgi taşır', category: 'Bilim', difficulty: 'HARD' },
+  { word: 'Kahve', hint: 'Sıcak içecek', category: 'İçecekler', difficulty: 'EASY' },
+  { word: 'Limonata', hint: 'Ekşi serinletici', category: 'İçecekler', difficulty: 'EASY' },
+  { word: 'Smoothie', hint: 'Meyveli karışım', category: 'İçecekler', difficulty: 'MEDIUM' },
+  { word: 'Salep', hint: 'Kış içeceği', category: 'İçecekler', difficulty: 'MEDIUM' },
+  { word: 'Kombu çayı', hint: 'Fermente içecek', category: 'İçecekler', difficulty: 'HARD' },
+  { word: 'Kale', hint: 'Savunma yapısı', category: 'Tarih', difficulty: 'EASY' },
+  { word: 'Kral', hint: 'Taht sahibi', category: 'Tarih', difficulty: 'EASY' },
+  { word: 'Müze', hint: 'Tarih eserlerinin yeri', category: 'Tarih', difficulty: 'MEDIUM' },
+  { word: 'İmparatorluk', hint: 'Geniş devlet düzeni', category: 'Tarih', difficulty: 'HARD' },
 ]
 
 /** Tüm kategorilerin listesi. */

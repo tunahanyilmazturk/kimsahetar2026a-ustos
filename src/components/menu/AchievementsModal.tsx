@@ -54,6 +54,8 @@ export function AchievementsModal({ open, onClose }: AchievementsModalProps) {
           const current = stats[ach.condition.stat] ?? 0
           const target = ach.condition.value
           const itemProgress = Math.min(100, Math.round((current / target) * 100))
+          const tier = current >= target * 5 ? 'Platin' : current >= target * 2 ? 'Elmas' : isUnlocked ? 'Altın' : current >= target / 2 ? 'Gümüş' : 'Bronz'
+          const tierClass = tier === 'Platin' ? 'text-slate-200' : tier === 'Elmas' ? 'text-cyan-300' : tier === 'Altın' ? 'text-amber-300' : tier === 'Gümüş' ? 'text-slate-300' : 'text-orange-300'
 
           return (
             <motion.div
@@ -75,11 +77,8 @@ export function AchievementsModal({ open, onClose }: AchievementsModalProps) {
                   isUnlocked ? 'bg-amber-500/20' : 'bg-slate-900/60 grayscale',
                 )}
               >
-                {isUnlocked ? (
-                  <span>{ach.emoji}</span>
-                ) : (
-                  <Lock className="h-5 w-5 text-slate-500" />
-                )}
+                <span className="absolute inset-0 bg-[length:400%_400%] bg-no-repeat" style={{ backgroundImage: "url('/achievement-badges.png')", backgroundPosition: `${(i % 4) * 33.333}% ${Math.min(3, Math.floor(i / 4)) * 33.333}%` }} />
+                {!isUnlocked && <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/55"><Lock className="h-5 w-5 text-slate-300" /></span>}
               </div>
 
               {/* İçerik */}
@@ -91,6 +90,8 @@ export function AchievementsModal({ open, onClose }: AchievementsModalProps) {
                   {isUnlocked && <Check className="h-3.5 w-3.5 text-amber-400 shrink-0" />}
                 </div>
                 <p className="text-xs text-slate-400 line-clamp-2">{ach.desc}</p>
+                {ach.reward && <p className="mt-1 text-[10px] font-medium text-emerald-300">Ödül: {ach.reward.label}</p>}
+                <p className={cn('mt-1 text-[10px] font-semibold uppercase tracking-wider', tierClass)}>{tier} seviye</p>
 
                 {/* İlerleme barı (kilitliyse) */}
                 {!isUnlocked && (

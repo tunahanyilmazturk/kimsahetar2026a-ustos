@@ -97,7 +97,7 @@ describe('randomId', () => {
 })
 
 describe('CATEGORIES', () => {
-  it('12 kategori vardır', () => {
-    expect(CATEGORIES).toHaveLength(12)
+  it('genişletilmiş kategori havuzu vardır', () => {
+    expect(CATEGORIES.length).toBeGreaterThanOrEqual(16)
   })
 })

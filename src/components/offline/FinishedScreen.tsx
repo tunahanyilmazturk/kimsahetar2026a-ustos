@@ -81,6 +81,7 @@ export function FinishedScreen({
   if (phase === 'reveal') {
     return (
       <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
+        <div className="mb-4 h-24 w-full max-w-md overflow-hidden rounded-2xl border border-rose-400/20" style={{ backgroundImage: "url('/role-duel.png')", backgroundPosition: 'left center', backgroundSize: 'cover' }} aria-hidden="true" />
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}

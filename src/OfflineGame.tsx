@@ -8,7 +8,7 @@ import { useSettings } from './hooks/useSettings'
 import { useToast } from './components/common/toast-context'
 import { pickWord, pickImpostor, updateRecentWords, randomId } from './utils/wordPool'
 import { generateBotHint, generateBotVote, generateBotGuess } from './utils/bot'
-import { countVotes, isGuessCorrect } from './utils/gameUtils'
+import { countVotes, isGuessCorrect, isValidHint } from './utils/gameUtils'
 import { CATEGORIES } from './constants'
 import { applyGameResult } from './lib/scoreSystem'
 import { questsApi } from './lib/questsApi'
@@ -130,6 +130,10 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     (text: string) => {
       const player = players[turnIndex]
       if (!player || !currentWord) return
+      if (!player.isBot && text !== '...' && !isValidHint(text, currentWord.word, chat.map((message) => message.text))) {
+        toast.warning('Bu ipucu geçersiz veya daha önce kullanılmış.')
+        return
+      }
 
       const msg: ChatMessage = {
         id: randomId('m_'),
@@ -142,7 +146,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
       setHintedThisRound((prev) => new Set(prev).add(player.id))
       advanceTurn()
     },
-    [players, turnIndex, currentWord, advanceTurn],
+    [players, turnIndex, currentWord, chat, advanceTurn, toast],
   )
 
   // ─── Playing: Pas geç ───────────────────────────────────────────────────────
@@ -455,7 +459,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
         hintedThisRound={hintedThisRound}
         passedThisRound={passedThisRound}
         passUsed={settings.passUsed}
-        canStartVoting={round >= 1}
+        canStartVoting={round > settings.roundsBeforeVoting}
         onSendHint={handleSendHint}
         onPass={handlePass}
         onStartVoting={handleStartVoting}

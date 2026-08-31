@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
-import { Coins, Check, Lock, User, Award } from 'lucide-react'
+import { Coins, Check, Lock, User, Award, Sparkles, ShoppingBag, Shield, Gem, Copy } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { Avatar, RarityBadge } from '../common/Avatar'
@@ -34,6 +34,11 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   const toast = useToast()
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(profile.username)
+  const ownedAvatars = inventory.avatars.length
+  const ownedFrames = inventory.frames.length
+  const xpInLevel = profile.xp % 100
+  const stats = statsApi.get()
+  const winRate = stats.gamesPlayed ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0
 
   const handleSaveName = () => {
     const trimmed = nameDraft.trim()
@@ -48,6 +53,11 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
     updateProfile({ username: trimmed })
     setEditingName(false)
     toast.success('İsim güncellendi')
+  }
+
+  const copyPlayerId = async () => {
+    await navigator.clipboard?.writeText(profile.playerId)
+    toast.success('Oyuncu ID kopyalandı')
   }
 
   const handleBuyAvatar = (id: string, price: number) => {
@@ -73,17 +83,33 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   return (
     <Modal open={open} onClose={onClose} title="Profil & Market" size="lg">
       {/* Üst özet — coin + level */}
-      <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-slate-800/60 ring-1 ring-slate-700 px-4 py-3">
+      <div className="relative mb-4 overflow-hidden rounded-2xl border border-indigo-400/20 bg-slate-900 px-4 py-4 shadow-lg shadow-indigo-950/20">
+        <div className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-55" style={{ backgroundImage: "url('/profile-card-bg.png')" }} aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-slate-950/35 via-slate-950/10 to-slate-950/45" aria-hidden="true" />
+        <div className="relative z-10">
+        <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Avatar avatarId={inventory.equippedAvatar} frameId={inventory.equippedFrame} size="lg" />
           <div>
             <p className="font-semibold text-slate-100">{profile.username}</p>
             <p className="text-sm text-slate-400">Seviye {profile.level}</p>
+            <button type="button" onClick={copyPlayerId} className="mt-1 inline-flex items-center gap-1 rounded-md bg-slate-950/40 px-2 py-1 text-[11px] font-mono text-cyan-300 hover:bg-slate-950/70" aria-label="Oyuncu ID'sini kopyala">
+              {profile.playerId} <Copy className="h-3 w-3" />
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 text-amber-300 ring-1 ring-amber-500/30">
           <Coins className="h-4 w-4" />
           <span className="font-semibold tabular-nums">{profile.coins}</span>
+        </div>
+        </div>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
+            <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-indigo-300" /> Seviye ilerlemesi</span>
+            <span>{xpInLevel}/100 XP</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-950/70"><div className="h-full rounded-full bg-linear-to-r from-indigo-400 to-fuchsia-400" style={{ width: `${xpInLevel}%` }} /></div>
+        </div>
         </div>
       </div>
 
@@ -95,11 +121,16 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-11',
+              'flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium transition-colors min-h-11 whitespace-nowrap',
               tab === t.id ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200',
             )}
           >
+            {t.id === 'avatars' && <ShoppingBag className="h-3.5 w-3.5" />}
+            {t.id === 'frames' && <Shield className="h-3.5 w-3.5" />}
+            {t.id === 'achievements' && <Award className="h-3.5 w-3.5" />}
             {t.label}
+            {t.id === 'avatars' && <span className="text-[10px] opacity-70">{ownedAvatars}</span>}
+            {t.id === 'frames' && <span className="text-[10px] opacity-70">{ownedFrames}</span>}
           </button>
         ))}
       </div>
@@ -142,6 +173,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            <Stat label="Oyuncu ID" value={profile.playerId} />
             <Stat label="Seviye" value={profile.level} />
             <Stat label="XP" value={profile.xp} />
             <Stat label="Avatar" value={AVATAR_MAP[inventory.equippedAvatar]?.name ?? '-'} />
@@ -154,6 +186,30 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
               }
             />
           </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <Stat label="Oyun" value={stats.gamesPlayed} />
+            <Stat label="Galibiyet" value={stats.wins} />
+            <Stat label="Kazanma" value={`%${winRate}`} />
+            <Stat label="Sahtekar" value={stats.winsAsImpostor} />
+            <Stat label="Dedektif" value={stats.winsAsPlayer} />
+            <Stat label="En iyi seri" value={stats.bestStreak} />
+          </div>
+
+          <div className="rounded-xl border border-slate-700/70 bg-slate-800/40 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Donanım vitrini</p>
+              <p className="text-[10px] text-slate-500">Koleksiyon: {ownedAvatars} avatar · {ownedFrames} çerçeve</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Avatar avatarId={inventory.equippedAvatar} frameId={inventory.equippedFrame} size="lg" />
+              <div className="min-w-0 space-y-1">
+                <p className="truncate text-sm font-semibold text-slate-100">{AVATAR_MAP[inventory.equippedAvatar]?.name ?? 'Avatar'}</p>
+                <p className="truncate text-xs text-slate-400">{inventory.equippedFrame ? AVATAR_FRAME_MAP[inventory.equippedFrame]?.name : 'Çerçevesiz'}</p>
+                <p className="text-[11px] text-indigo-300">Profilini özelleştirmek için koleksiyona göz at.</p>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -162,7 +218,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
         <motion.div
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+          className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[48svh] overflow-y-auto pr-1"
         >
           {ALL_AVATARS.map((a) => {
             const owned = inventory.avatars.includes(a.id)
@@ -171,13 +227,13 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
               <div
                 key={a.id}
                 className={cn(
-                  'flex flex-col items-center gap-2 rounded-xl p-3 ring-1 transition-colors',
+                  'group flex min-w-0 h-[236px] flex-col items-center gap-2 overflow-visible rounded-xl border p-3 ring-1 transition-all hover:-translate-y-0.5',
                   equipped ? 'ring-indigo-500 bg-indigo-500/10' : 'ring-slate-700 bg-slate-800/40',
                 )}
               >
-                <Avatar avatarId={a.id} size="lg" hideFrame />
+                <div className="relative"><Avatar avatarId={a.id} size="lg" hideFrame />{a.rarity === 'LEGENDARY' && <Gem className="absolute -right-1 -top-1 h-4 w-4 text-fuchsia-300" />}</div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-slate-100">{a.name}</p>
+                  <p className="min-h-10 text-center text-sm font-medium leading-5 text-slate-100">{a.name}</p>
                   <RarityBadge rarity={a.rarity} />
                 </div>
                 {equipped ? (
@@ -204,7 +260,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
         <motion.div
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+          className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[48svh] overflow-y-auto pr-1"
         >
           {AVATAR_FRAMES.map((f) => {
             const owned = inventory.frames.includes(f.id)
@@ -323,6 +379,11 @@ function AchievementsTab() {
                   {isUnlocked && <Check className="h-3 w-3 text-amber-400 shrink-0" />}
                 </div>
                 <p className="text-[11px] text-slate-400 line-clamp-1">{ach.desc}</p>
+                {ach.reward && (
+                  <p className="mt-1 truncate text-[10px] font-medium text-emerald-300">
+                    Ödül: {ach.reward.label}{isUnlocked ? ' · Kazanıldı' : ''}
+                  </p>
+                )}
                 {!isUnlocked && (
                   <div className="mt-1 flex items-center gap-1.5">
                     <div className="h-1 flex-1 rounded-full bg-slate-900 overflow-hidden">

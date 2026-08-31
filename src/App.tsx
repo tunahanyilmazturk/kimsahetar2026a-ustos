@@ -2,26 +2,35 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { ToastProvider } from './components/common/Toast'
 import { useToast } from './components/common/toast-context'
 import { MainMenuPanel } from './components/menu/MainMenuPanel'
+import { OnlineLobby } from './OnlineLobby'
+import { AuthScreen } from './components/auth/AuthScreen'
+import { authApi } from './lib/authApi'
+import { useSettings } from './hooks/useSettings'
 
 // OfflineGame sadece "Oyna" tıklandığında gerekir — lazy-load ile ayrı chunk
 const OfflineGame = lazy(() =>
   import('./OfflineGame').then((m) => ({ default: m.OfflineGame })),
 )
 
-type Screen = 'menu' | 'game'
+type Screen = 'menu' | 'game' | 'online'
 
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('menu')
+  const [authenticated, setAuthenticated] = useState(() => Boolean(authApi.current()))
+  const { settings } = useSettings()
+
+  if (!authenticated) return <AuthScreen onSuccess={() => setAuthenticated(true)} />
 
   if (screen === 'game') {
     return (
-      <Suspense fallback={<LoadingScreen />}>
+      <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><Suspense fallback={<LoadingScreen />}>
         <OfflineGame onExit={() => setScreen('menu')} />
-      </Suspense>
+      </Suspense></div>
     )
   }
+  if (screen === 'online') return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><OnlineLobby onExit={() => setScreen('menu')} /></div>
 
-  return <MainMenuPanel onPlay={() => setScreen('game')} />
+  return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><MainMenuPanel onPlay={() => setScreen('game')} onOnline={() => setScreen('online')} /></div>
 }
 
 function LoadingScreen() {

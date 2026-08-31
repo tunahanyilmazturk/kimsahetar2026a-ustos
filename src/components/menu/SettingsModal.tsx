@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Volume2, VolumeX, Music, Music2, Vibrate, RotateCcw } from 'lucide-react'
+import { Volume2, VolumeX, Music, Music2, Vibrate, RotateCcw, Eye, Type } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { useSettings } from '../../hooks/useSettings'
@@ -27,6 +27,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   return (
     <Modal open={open} onClose={onClose} title="Ayarlar" size="md">
       <div className="space-y-6">
+        <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-indigo-200">Oyun deneyimini kişiselleştir</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">Ayarlar otomatik kaydedilir ve bir sonraki oyunda uygulanır.</p>
+        </div>
         {/* ─── Ses & Titreşim ───────────────────────────────────────── */}
         <section>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
@@ -57,12 +61,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
         </section>
 
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Görünüm & Erişilebilirlik</h3>
+          <div className="space-y-2">
+            <ToggleRow icon={<Eye className="h-5 w-5" />} label="Yüksek Kontrast" desc="Kartları ve metinleri daha belirgin yap" checked={settings.highContrast} onChange={(v) => update({ highContrast: v })} />
+            <ToggleRow icon={<Type className="h-5 w-5" />} label="Büyük Yazı" desc="Arayüz metinlerini büyüt" checked={settings.largeText} onChange={(v) => update({ largeText: v })} />
+          </div>
+        </section>
+
         {/* ─── Oyun Varsayılanları ──────────────────────────────────── */}
         <section>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Oyun Varsayılanları
           </h3>
           <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <PresetButton label="Hızlı" desc="15sn · 1 tur" onClick={() => update({ defaultTurnTimeLimit: 15, defaultRoundsBeforeVoting: 1 })} />
+              <PresetButton label="Dengeli" desc="30sn · 2 tur" active={settings.defaultTurnTimeLimit === 30 && settings.defaultRoundsBeforeVoting === 2} onClick={() => update({ defaultTurnTimeLimit: 30, defaultRoundsBeforeVoting: 2 })} />
+              <PresetButton label="Uzun Oyun" desc="60sn · 3 tur" onClick={() => update({ defaultTurnTimeLimit: 60, defaultRoundsBeforeVoting: 3 })} />
+            </div>
             {/* Tur süresi */}
             <div>
               <div className="mb-1.5 flex items-center justify-between">
@@ -202,6 +219,15 @@ function ToggleRow({
           )}
         />
       </span>
+    </button>
+  )
+}
+
+function PresetButton({ label, desc, active, onClick }: { label: string; desc: string; active?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={cn('rounded-xl px-2 py-2 text-center ring-1 transition-colors', active ? 'bg-indigo-500/20 text-indigo-200 ring-indigo-400/50' : 'bg-slate-800/60 text-slate-300 ring-slate-700 hover:bg-slate-700')}>
+      <span className="block text-xs font-semibold">{label}</span>
+      <span className="mt-0.5 block text-[10px] text-slate-500">{desc}</span>
     </button>
   )
 }

@@ -127,11 +127,9 @@ export function generateBotHint(ctx: BotHintContext): string {
     // EXPERT: diğer ipuçlardan çıkarsama yapmaya çalış
     if (previousHints.length > 0) {
       // Önceki ipuçlardan birini parafraz et
-      const lastHint = previousHints[previousHints.length - 1]!
-      const words = lastHint.text.split(' ')
-      if (words.length > 2) {
-        return words.slice(0, Math.ceil(words.length / 2)).join(' ') + ' gibi'
-      }
+      const ranked = [...previousHints].sort((a, b) => hintRisk(a.text) - hintRisk(b.text))
+      const words = ranked[0]!.text.split(' ').filter(Boolean)
+      if (words.length > 1) return `${words.slice(0, Math.min(3, words.length)).join(' ')} ile ilgili`
     }
     return pickRandom(SAHTEKAR_VAGUE_HINTS)
   }
@@ -188,13 +186,16 @@ export function generateBotVote(ctx: BotVoteContext): string {
     return pickRandom(candidates).id
   }
 
-  // Oyuncu bot: en az ipucu veren veya en kısa ipucu veren oyuncuya oy ver
+  // Oyuncu bot: şüphe puanını ipucu sayısı, uzunluğu ve tekrarlarla hesaplar.
   const hintCounts: Record<string, number> = {}
   const hintLengths: Record<string, number> = {}
+  const suspicion: Record<string, number> = {}
   for (const p of candidates) {
     const playerHints = chat.filter((m) => m.playerId === p.id)
     hintCounts[p.id] = playerHints.length
     hintLengths[p.id] = playerHints.reduce((sum, m) => sum + m.text.length, 0)
+    const riskyHints = playerHints.reduce((sum, hint) => sum + hintRisk(hint.text), 0)
+    suspicion[p.id] = (hintCounts[p.id] === 0 ? 4 : 0) + (hintLengths[p.id] < 8 ? 3 : hintLengths[p.id] < 16 ? 1 : 0) + riskyHints
   }
 
   // En az ipucu veren oyuncu
@@ -211,12 +212,25 @@ export function generateBotVote(ctx: BotVoteContext): string {
     if (leastHints && shortestHints && leastHints.id === shortestHints.id) {
       return leastHints.id
     }
-    // Değilse, en az ipucu verene oy ver
-    return leastHints?.id ?? pickRandom(candidates).id
+    const top = [...candidates].sort((a, b) => suspicion[b.id]! - suspicion[a.id]!)[0]
+    return top?.id ?? leastHints?.id ?? pickRandom(candidates).id
   }
 
   // SMART: en az ipucu verene oy ver
-  return leastHints?.id ?? pickRandom(candidates).id
+  const top = [...candidates].sort((a, b) => suspicion[b.id]! - suspicion[a.id]!)[0]
+  return top?.id ?? leastHints?.id ?? pickRandom(candidates).id
+}
+
+function tokenize(value: string): string[] {
+  return value.toLocaleLowerCase('tr-TR').replace(/[^a-zçğıöşü0-9 ]/g, '').split(/\s+/).filter(Boolean)
+}
+
+function hintRisk(text: string): number {
+  const length = tokenize(text).length
+  if (text === '...' || text.length < 4) return 4
+  if (length === 1) return 2
+  if (length >= 6) return -1
+  return 0
 }
 
 // ─── Sahtekar Kelime Tahmini ─────────────────────────────────────────────────
@@ -256,15 +270,10 @@ export function generateBotGuess(ctx: BotGuessContext): string {
     return `${word.word.length} harfli ${word.category.toLowerCase()} kelimesi`
   }
 
-  // EXPERT: %60 doğru tahmin şansı
-  if (Math.random() < 0.6) {
-    return word.word
-  }
-  // İpuçlarından bir kelime çıkar
-  if (chat.length > 0) {
-    const lastHint = chat[chat.length - 1]!
-    const words = lastHint.text.split(' ')
-    return words[0] ?? word.category
-  }
-  return word.category
+  // EXPERT: ipuçlarının miktarına göre güven hesaplar.
+  const usefulHints = chat.filter((hint) => hintRisk(hint.text) <= 1)
+  const confidence = Math.min(0.85, 0.35 + usefulHints.length * 0.1)
+  if (Math.random() < confidence) return word.word
+  const candidate = usefulHints.at(-1)?.text
+  return candidate ? `${candidate} ile ilgili` : word.category
 }

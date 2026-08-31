@@ -4,8 +4,8 @@ import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { useToast } from '../common/toast-context'
 import { useProfile } from '../../hooks/useProfile'
-import { questsApi, today } from '../../lib/questsApi'
-import { DAILY_QUESTS } from '../../config/dailyQuests'
+import { questsApi } from '../../lib/questsApi'
+import { DAILY_QUESTS, WEEKLY_QUESTS } from '../../config/dailyQuests'
 import { cn } from '../../utils/cn'
 import type { QuestProgress } from '../../types'
 
@@ -19,12 +19,14 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
   const toast = useToast()
 
   const state = questsApi.get()
+  const weeklyState = questsApi.getWeekly()
   const totalQuests = DAILY_QUESTS.length
   const completedCount = DAILY_QUESTS.filter((q) => state.quests[q.id]?.completed).length
   const claimableCount = DAILY_QUESTS.filter((q) => {
     const p = state.quests[q.id]
     return p?.completed && !p.claimed
   }).length
+  const remaining = timeUntilReset()
 
   const handleClaim = (questId: string) => {
     const r = questsApi.claim(questId)
@@ -49,6 +51,7 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
     if (r.xp > 0) addXp(r.xp)
     toast.success(`${r.claimed.length} görev ödülü alındı! +${r.coins} coin, +${r.xp} XP`)
   }
+  const handleWeeklyClaim = (id: string) => { const r = questsApi.claimWeekly(id); if (r.ok && r.reward) { addCoins(r.reward.coins); addXp(r.reward.xp); toast.success(`Haftalık ödül: +${r.reward.coins} coin, +${r.reward.xp} XP`) } else toast.error(r.reason ?? 'Ödül alınamadı') }
 
   return (
     <Modal open={open} onClose={onClose} title="Günlük Görevler" size="lg">
@@ -61,7 +64,7 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Clock className="h-3.5 w-3.5" />
-            <span>{today()}</span>
+            <span>Yenilenmeye {remaining}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mb-2">
@@ -111,6 +114,11 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
         })}
       </div>
 
+      <section className="mt-6 border-t border-slate-800 pt-4">
+        <div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold text-slate-100">Haftalık Görevler</h3><p className="text-xs text-slate-500">Her hafta yenilenir · büyük ödüller</p></div><span className="text-xs text-cyan-300">{WEEKLY_QUESTS.filter((q) => weeklyState.quests[q.id]?.completed).length}/{WEEKLY_QUESTS.length}</span></div>
+        <div className="space-y-2">{WEEKLY_QUESTS.map((q) => { const p = weeklyState.quests[q.id] ?? { progress: 0, completed: false, claimed: false }; return <div key={q.id} className="flex items-center gap-3 rounded-xl bg-slate-800/50 p-3 ring-1 ring-slate-700/60"><span className="text-xl">{q.emoji}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-200">{q.title}</p><div className="mt-1 flex items-center gap-2"><div className="h-1.5 flex-1 rounded-full bg-slate-900"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.min(100, p.progress / q.goal * 100)}%` }} /></div><span className="text-[10px] text-slate-500">{p.progress}/{q.goal}</span></div></div>{p.completed && !p.claimed && <Button size="sm" variant="success" onClick={() => handleWeeklyClaim(q.id)}>Al</Button>}{p.claimed && <Check className="h-4 w-4 text-emerald-300" />}</div> })}</div>
+      </section>
+
       {/* ─── Alt bilgi ──────────────────────────────────────────────── */}
       <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
         <Clock className="h-3.5 w-3.5" />
@@ -118,6 +126,16 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
       </p>
     </Modal>
   )
+}
+
+function timeUntilReset(): string {
+  const now = new Date()
+  const midnight = new Date(now)
+  midnight.setHours(24, 0, 0, 0)
+  const minutes = Math.max(1, Math.ceil((midnight.getTime() - now.getTime()) / 60000))
+  const hours = Math.floor(minutes / 60)
+  return hours > 0 ? `${hours}sa ${minutes % 60}dk`
+    : `${minutes}dk`
 }
 
 // ─── Quest Card ──────────────────────────────────────────────────────────────

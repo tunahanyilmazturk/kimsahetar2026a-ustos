@@ -73,6 +73,25 @@ body {
   animation: gradient-shift 6s ease infinite;
 }
 
+.large-text { font-size: 1.08rem; }
+.large-text .text-xs { font-size: 0.82rem; }
+[data-contrast='high'] .text-slate-400, [data-contrast='high'] .text-slate-500, [data-contrast='high'] .text-slate-600 { color: #cbd5e1; }
+[data-contrast='high'] .bg-slate-800\/40, [data-contrast='high'] .bg-slate-900\/80 { background-color: #172033; }
+
+.menu-primary-button {
+  background: linear-gradient(135deg, #6366f1 0%, #9333ea 55%, #0891b2 100%);
+  box-shadow: 0 12px 30px rgba(79, 70, 229, 0.28);
+}
+
+.menu-primary-button:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 16px 36px rgba(79, 70, 229, 0.4);
+}
+
+.menu-primary-button:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 /* Touch-friendly: butonlar min 44x44 */
 button,
 [role='button'] {

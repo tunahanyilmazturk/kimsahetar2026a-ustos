@@ -36,7 +36,21 @@ export function RevealScreen({
   if (!player) return null
 
   return (
-    <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
+    <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
+      {revealed && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 blur-[1px]"
+            style={{
+              backgroundImage: "url('/role-duel.png')",
+              backgroundPosition: isImpostor ? 'left center' : 'right center',
+              backgroundSize: '200% auto',
+            }}
+            aria-hidden="true"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-slate-950/65" aria-hidden="true" />
+        </>
+      )}
       {/* ─── İlerleme ───────────────────────────────────────────────── */}
       <div className="mb-8 flex items-center gap-2">
         {players.map((p, i) => (
@@ -55,7 +69,7 @@ export function RevealScreen({
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 280, damping: 25 }}
-        className="w-full max-w-md flex flex-col items-center gap-6"
+        className="relative z-10 w-full max-w-md flex flex-col items-center gap-6"
       >
         <div className="flex flex-col items-center gap-3">
           <Avatar avatarId={player.avatar} size="xl" hideFrame />

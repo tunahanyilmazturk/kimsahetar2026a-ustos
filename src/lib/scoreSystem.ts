@@ -1,5 +1,6 @@
 import type { Winner, Player } from '../types'
 import { profileApi, statsApi, leaderboardApi } from './profileApi'
+import { questsApi } from './questsApi'
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
@@ -73,8 +74,12 @@ export function applyGameResult(args: {
       wonAsImpostor: won && isImpostor,
       wonAsPlayer: won && !isImpostor,
     })
+    questsApi.addWeeklyProgress('gamesPlayed')
+    if (won) questsApi.addWeeklyProgress('wins')
+    if (won && !isImpostor) questsApi.addWeeklyProgress('winsAsPlayer')
     const profile = profileApi.get()
     leaderboardApi.upsert({
+      playerId: profile.playerId,
       username: profile.username,
       wins: stats.wins,
       xp: profile.xp,

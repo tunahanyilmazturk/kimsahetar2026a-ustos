@@ -39,6 +39,7 @@ export function LobbyScreen({
   const toast = useToast()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [newName, setNewName] = useState('')
+  const [showGuide, setShowGuide] = useState(() => localStorage.getItem('sahtekar:tutorial-seen') !== '1')
 
   const realPlayers = useMemo(() => players.filter((p) => !p.isBot), [players])
   const botPlayers = useMemo(() => players.filter((p) => p.isBot), [players])
@@ -108,6 +109,15 @@ export function LobbyScreen({
 
   return (
     <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex flex-col px-4 py-6">
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-indigo-400/25 bg-slate-900 p-5 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3"><span className="text-3xl">🎭</span><div><h2 className="text-lg font-bold">Oyuna hoş geldin!</h2><p className="text-xs text-slate-400">3 adımda Sahtekar Kim?</p></div></div>
+            <div className="space-y-3 text-sm text-slate-300"><GuideStep number="1" title="Oyuncuları ekle" text="En az 3 oyuncu veya bot ile lobi oluştur." /><GuideStep number="2" title="Rolünü gizli tut" text="Herkes sırasıyla rolünü görür ve cihazı sonraki oyuncuya verir." /><GuideStep number="3" title="İpucunu ver ve oyla" text="Sahtekarı yakalamaya çalış; sahtekarsan kelimeyi tahmin et!" /></div>
+            <Button fullWidth className="mt-5" onClick={() => { localStorage.setItem('sahtekar:tutorial-seen', '1'); setShowGuide(false) }}>Anladım, başlayalım</Button>
+          </div>
+        </div>
+      )}
       {/* ─── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -227,4 +237,8 @@ export function LobbyScreen({
       />
     </div>
   )
+}
+
+function GuideStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return <div className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-300">{number}</span><div><p className="font-semibold text-slate-200">{title}</p><p className="text-xs leading-5 text-slate-400">{text}</p></div></div>
 }

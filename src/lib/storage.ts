@@ -13,8 +13,10 @@ export const STORAGE_KEYS = {
   INVENTORY: 'sahtekar:inventory',
   ACHIEVEMENTS: 'sahtekar:achievements',
   QUESTS: 'sahtekar:quests',
+  WEEKLY_QUESTS: 'sahtekar:weekly-quests',
   LEADERBOARD: 'sahtekar:leaderboard',
   SETTINGS: 'sahtekar:settings',
+  AUTH: 'sahtekar:auth',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

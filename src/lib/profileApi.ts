@@ -7,6 +7,14 @@ import type { Profile, Stats, Inventory, LeaderboardEntry, Settings } from '../t
 export const STARTING_COINS = 100
 export const XP_PER_LEVEL = 100
 
+function createPlayerId(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint8Array(8)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes)
+  else bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256) })
+  return `SK-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')}`
+}
+
 /** level = floor(xp / 100) + 1 */
 export function levelFromXp(xp: number): number {
   return Math.floor(xp / XP_PER_LEVEL) + 1
@@ -14,6 +22,7 @@ export function levelFromXp(xp: number): number {
 
 function defaultProfile(): Profile {
   return {
+    playerId: createPlayerId(),
     username: 'Oyuncu',
     avatar: STARTER_AVATARS[0]!.id,
     frame: null,
@@ -55,7 +64,10 @@ export const profileApi = {
       return fresh
     }
     // level her zaman xp'den türetilir (tutarlılık)
-    return { ...p, level: levelFromXp(p.xp) }
+    // Eski kayıtlar için tek seferlik ID migrasyonu.
+    const migrated = p.playerId ? p : { ...p, playerId: createPlayerId() }
+    if (!p.playerId) storage.set(STORAGE_KEYS.PROFILE, migrated)
+    return { ...migrated, level: levelFromXp(migrated.xp) }
   },
 
   update(patch: Partial<Profile>): Profile {
@@ -170,6 +182,16 @@ export const inventoryApi = {
     return true
   },
 
+  addAvatarReward(avatarId: string): void {
+    const inv = this.get()
+    if (!inv.avatars.includes(avatarId)) storage.set(STORAGE_KEYS.INVENTORY, { ...inv, avatars: [...inv.avatars, avatarId] })
+  },
+
+  addFrameReward(frameId: string): void {
+    const inv = this.get()
+    if (!inv.frames.includes(frameId)) storage.set(STORAGE_KEYS.INVENTORY, { ...inv, frames: [...inv.frames, frameId] })
+  },
+
   reset(): void {
     storage.set(STORAGE_KEYS.INVENTORY, defaultInventory())
   },
@@ -185,7 +207,8 @@ export const leaderboardApi = {
   /** Bir oyuncu için entry güncelle/ekle (oyun sonunda çağrılır). */
   upsert(entry: LeaderboardEntry): void {
     const all = this.getAll()
-    const idx = all.findIndex((e) => e.username === entry.username)
+    // Yeni online kayıtlar ID ile, eski yerel kayıtlar kullanıcı adıyla eşleşir.
+    const idx = all.findIndex((e) => entry.playerId ? e.playerId === entry.playerId : !e.playerId && e.username === entry.username)
     if (idx >= 0) all[idx] = entry
     else all.push(entry)
     // wins'e göre azalan sırala
@@ -201,6 +224,8 @@ function defaultSettings(): Settings {
     sound: true,
     music: true,
     haptics: true,
+    highContrast: false,
+    largeText: false,
     defaultTurnTimeLimit: 30,
     defaultRoundsBeforeVoting: 2,
     defaultBotDifficulty: 'SMART',

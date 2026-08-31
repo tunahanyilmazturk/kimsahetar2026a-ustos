@@ -31,5 +31,19 @@ export function countVotes(votes: Record<string, string>): {
  * Büyük/küçük harf duyarsız, boşlukları trim'ler.
  */
 export function isGuessCorrect(guess: string, word: string): boolean {
-  return guess.trim().toLowerCase() === word.trim().toLowerCase()
+  return normalizeText(guess) === normalizeText(word)
+}
+
+export function normalizeText(value: string): string {
+  return value.trim().toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ')
+}
+
+export function isValidHint(hint: string, word: string, previousHints: string[] = []): boolean {
+  const normalizedHint = normalizeText(hint)
+  const normalizedWord = normalizeText(word)
+  if (normalizedHint.length < 2 || normalizedHint.length > 100) return false
+  if (normalizedHint === normalizedWord || normalizedHint.includes(normalizedWord)) return false
+  const wordStem = normalizedWord.length >= 5 ? normalizedWord.slice(0, -2) : normalizedWord
+  if (wordStem.length >= 4 && normalizedHint.includes(wordStem)) return false
+  return !previousHints.some((previous) => normalizeText(previous) === normalizedHint)
 }

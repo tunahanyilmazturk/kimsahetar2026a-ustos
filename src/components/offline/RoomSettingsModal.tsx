@@ -18,6 +18,12 @@ const ROUND_OPTIONS = [1, 2, 3, 4, 5] as const
 const WORD_DIFFICULTIES: WordDifficulty[] = ['EASY', 'MEDIUM', 'HARD', 'MIXED']
 const BOT_DIFFICULTIES: BotDifficulty[] = ['EASY', 'SMART', 'EXPERT']
 
+const GAME_PRESETS = [
+  { id: 'classic', label: 'Klasik', desc: 'Dengeli oyun', patch: { turnTimeLimit: 30, roundsBeforeVoting: 2, wordDifficulty: 'MIXED' as WordDifficulty, botDifficulty: 'SMART' as BotDifficulty } },
+  { id: 'quick', label: 'Hızlı Tur', desc: 'Kısa ve tempolu', patch: { turnTimeLimit: 15, roundsBeforeVoting: 1, wordDifficulty: 'EASY' as WordDifficulty, botDifficulty: 'SMART' as BotDifficulty } },
+  { id: 'detective', label: 'Dedektif', desc: 'Zor kelimeler', patch: { turnTimeLimit: 60, roundsBeforeVoting: 3, wordDifficulty: 'HARD' as WordDifficulty, botDifficulty: 'EXPERT' as BotDifficulty } },
+]
+
 export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSettingsModalProps) {
   const toast = useToast()
   const [customWordInput, setCustomWordInput] = useState('')
@@ -62,6 +68,17 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
   return (
     <Modal open={open} onClose={onClose} title="Oda Ayarları" size="lg">
       <div className="space-y-6">
+        <section>
+          <label className="mb-2 block text-sm font-semibold text-slate-200">Oyun Profili</label>
+          <div className="grid grid-cols-3 gap-2">
+            {GAME_PRESETS.map((preset) => (
+              <button key={preset.id} type="button" onClick={() => onChange(preset.patch)} className="rounded-xl bg-slate-800 px-2 py-3 text-center ring-1 ring-slate-700 transition-colors hover:bg-indigo-500/20 hover:ring-indigo-400/50">
+                <span className="block text-xs font-semibold text-slate-100">{preset.label}</span>
+                <span className="mt-1 block text-[10px] text-slate-500">{preset.desc}</span>
+              </button>
+            ))}
+          </div>
+        </section>
         {/* ─── Tur Süresi ────────────────────────────────────────────── */}
         <section>
           <div className="mb-2 flex items-center justify-between">

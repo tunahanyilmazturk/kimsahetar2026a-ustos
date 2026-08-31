@@ -24,6 +24,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: 'Doyumsuz',
     emoji: '🔥',
     desc: '50 oyun oyna.',
+    reward: { type: 'frame', id: 'frame_thunder', label: 'Gök Gürültüsü çerçevesi' },
     condition: { stat: 'gamesPlayed', op: '>=', value: 50 },
   },
   {
@@ -45,6 +46,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: 'Sahtekar Ustası',
     emoji: '🎭',
     desc: 'Sahtekar olarak 5 kez kazan.',
+    reward: { type: 'avatar', id: 'avatar_inferno', label: 'Alev Çekirdeği avatarı' },
     condition: { stat: 'winsAsImpostor', op: '>=', value: 5 },
   },
   {
@@ -52,6 +54,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: 'Dedektif',
     emoji: '🔍',
     desc: 'Sahtekarı 10 kez yakala.',
+    reward: { type: 'frame', id: 'frame_prism', label: 'Prizma çerçevesi' },
     condition: { stat: 'winsAsPlayer', op: '>=', value: 10 },
   },
   {
@@ -68,6 +71,12 @@ export const ACHIEVEMENTS: Achievement[] = [
     desc: '5 oyun üst üste kazan.',
     condition: { stat: 'bestStreak', op: '>=', value: 5 },
   },
+  { id: 'games_100', title: 'Efsane Mürettebat', emoji: '🚀', desc: '100 oyun oyna.', reward: { type: 'avatar', id: 'avatar_celestial', label: 'Kozmik Taç avatarı' }, condition: { stat: 'gamesPlayed', op: '>=', value: 100 } },
+  { id: 'wins_25', title: 'Kaptan', emoji: '🧭', desc: '25 galibiyet al.', condition: { stat: 'wins', op: '>=', value: 25 } },
+  { id: 'impostor_10', title: 'Usta Kamuflaj', emoji: '🕶️', desc: 'Sahtekar olarak 10 kez kazan.', condition: { stat: 'winsAsImpostor', op: '>=', value: 10 } },
+  { id: 'detective_25', title: 'Baş Dedektif', emoji: '🧪', desc: 'Sahtekarı 25 kez yakala.', condition: { stat: 'winsAsPlayer', op: '>=', value: 25 } },
+  { id: 'streak_10', title: 'Seri Makinesi', emoji: '⚙️', desc: '10 oyun üst üste kazan.', condition: { stat: 'bestStreak', op: '>=', value: 10 } },
+  { id: 'wins_50', title: 'Onur Madalyası', emoji: '💎', desc: '50 galibiyet al.', reward: { type: 'frame', id: 'frame_halo', label: 'Işık Halkası çerçevesi' }, condition: { stat: 'wins', op: '>=', value: 50 } },
 ]
 
 /** ID -> Achievement eşlemesi (hızlı erişim). */
