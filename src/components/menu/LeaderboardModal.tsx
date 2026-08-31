@@ -3,7 +3,7 @@ import { Trophy, Medal, Crown, Sparkles, Gamepad2, Clock, Trash2 } from 'lucide-
 import { Modal } from '../common/Modal'
 import { Avatar } from '../common/Avatar'
 import { leaderboardApi, profileApi, statsApi } from '../../lib/profileApi'
-import { useToast } from '../common/Toast'
+import { useToast } from '../common/toast-context'
 import { cn } from '../../utils/cn'
 import type { LeaderboardEntry } from '../../types'
 

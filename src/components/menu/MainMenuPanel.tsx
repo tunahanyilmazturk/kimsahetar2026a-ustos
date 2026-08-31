@@ -21,7 +21,7 @@ import { AchievementsModal } from './AchievementsModal'
 import { DailyQuestsModal } from './DailyQuestsModal'
 import { LeaderboardModal } from './LeaderboardModal'
 import { SettingsModal } from './SettingsModal'
-import { useToast } from '../common/Toast'
+import { useToast } from '../common/toast-context'
 
 export interface MainMenuPanelProps {
   /** Offline oyun başlatıldığında çağrılır. */

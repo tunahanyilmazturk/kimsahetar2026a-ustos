@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useMemo,
   useRef,
   useState,
@@ -10,24 +8,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import { CheckCircle2, Info, AlertTriangle, XCircle, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
-
-type ToastType = 'success' | 'info' | 'warning' | 'error'
-
-interface Toast {
-  id: number
-  type: ToastType
-  message: string
-}
-
-interface ToastContextValue {
-  toast: (message: string, type?: ToastType) => void
-  success: (message: string) => void
-  info: (message: string) => void
-  warning: (message: string) => void
-  error: (message: string) => void
-}
-
-const ToastContext = createContext<ToastContextValue | null>(null)
+import { ToastContext, type ToastType, type Toast, type ToastContextValue } from './toast-context'
 
 const ICONS: Record<ToastType, ReactNode> = {
   success: <CheckCircle2 className="h-5 w-5 text-emerald-400" />,
@@ -107,10 +88,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   )
-}
-
-export function useToast(): ToastContextValue {
-  const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast, ToastProvider içinde kullanılmalı')
-  return ctx
 }

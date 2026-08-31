@@ -3,7 +3,7 @@ import { Volume2, VolumeX, Music, Music2, Vibrate, RotateCcw } from 'lucide-reac
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { useSettings } from '../../hooks/useSettings'
-import { useToast } from '../common/Toast'
+import { useToast } from '../common/toast-context'
 import { cn } from '../../utils/cn'
 import type { BotDifficulty, WordDifficulty } from '../../types'
 

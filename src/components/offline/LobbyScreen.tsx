@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import { Avatar } from '../common/Avatar'
-import { useToast } from '../common/Toast'
+import { useToast } from '../common/toast-context'
 import { RoomSettingsModal } from './RoomSettingsModal'
 import { randomId } from '../../utils/wordPool'
 import { cn } from '../../utils/cn'

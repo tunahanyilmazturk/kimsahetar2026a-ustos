@@ -5,7 +5,7 @@ import { PlayingScreen } from './components/offline/PlayingScreen'
 import { VotingScreen } from './components/offline/VotingScreen'
 import { FinishedScreen } from './components/offline/FinishedScreen'
 import { useSettings } from './hooks/useSettings'
-import { useToast } from './components/common/Toast'
+import { useToast } from './components/common/toast-context'
 import { pickWord, pickImpostor, updateRecentWords, randomId } from './utils/wordPool'
 import { generateBotHint, generateBotVote, generateBotGuess } from './utils/bot'
 import { CATEGORIES } from './constants'
@@ -263,29 +263,8 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     setState('FINISHED')
   }, [votes, impostorId])
 
-  // ─── Finished: Sahtekar kelime tahmini ──────────────────────────────────────
-  const handleImpostorGuess = useCallback(
-    (guess: string) => {
-      setImpostorGuess(guess)
-      if (!currentWord || !impostorId) return
-
-      const guessCorrect = guess.trim().toLowerCase() === currentWord.word.toLowerCase()
-      // Sahtekar yakalandı (votedImpostorId === impostorId)
-      // Eğer kelimeyi de bilirse → IMPOSTOR kazanır
-      // Bilmezse → PLAYERS kazanır
-      if (guessCorrect) {
-        setWinner('IMPOSTOR')
-      } else {
-        setWinner('PLAYERS')
-      }
-
-      // Skor hesapla ve ödülleri oluştur
-      computeResults(guessCorrect)
-    },
-    [currentWord, impostorId, votedImpostorId],
-  )
-
   // ─── Skor & ödül hesaplama ──────────────────────────────────────────────────
+  // handleImpostorGuess'ten önce tanımlanmalı (immutability uyarısını önlemek için)
   const computeResults = useCallback(
     (guessCorrect: boolean) => {
       if (!impostorId || !winner) return
@@ -365,6 +344,28 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
       setAwards(newAwards)
     },
     [players, impostorId, winner, toast],
+  )
+
+  // ─── Finished: Sahtekar kelime tahmini ──────────────────────────────────────
+  const handleImpostorGuess = useCallback(
+    (guess: string) => {
+      setImpostorGuess(guess)
+      if (!currentWord || !impostorId) return
+
+      const guessCorrect = guess.trim().toLowerCase() === currentWord.word.toLowerCase()
+      // Sahtekar yakalandı (votedImpostorId === impostorId)
+      // Eğer kelimeyi de bilirse → IMPOSTOR kazanır
+      // Bilmezse → PLAYERS kazanır
+      if (guessCorrect) {
+        setWinner('IMPOSTOR')
+      } else {
+        setWinner('PLAYERS')
+      }
+
+      // Skor hesapla ve ödülleri oluştur
+      computeResults(guessCorrect)
+    },
+    [currentWord, impostorId, computeResults],
   )
 
   // ─── Bot otomasyonu: Finished (sahtekar bot kelime tahmini) ─────────────────

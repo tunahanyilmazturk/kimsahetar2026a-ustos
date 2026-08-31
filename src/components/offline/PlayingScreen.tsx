@@ -66,6 +66,7 @@ export function PlayingScreen({
   const [phase, setPhase] = useState<'pass' | 'write'>('pass')
   const [hintText, setHintText] = useState('')
   const [timeLeft, setTimeLeft] = useState(settings.turnTimeLimit)
+  const [prevTurnIndex, setPrevTurnIndex] = useState(turnIndex)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const currentPlayer = players[turnIndex]
@@ -80,9 +81,21 @@ export function PlayingScreen({
     }
   }, [])
 
-  const startTimer = useCallback(() => {
-    stopTimer()
+  // Turn değişince phase'i resetle — render sırasında ayarla (effect içinde setState'ten kaçın)
+  // Bot sırası ise 'write' phase'e direkt geç, gerçek oyuncu ise 'pass' phase'inden başla.
+  if (prevTurnIndex !== turnIndex) {
+    setPrevTurnIndex(turnIndex)
+    setHintText('')
     setTimeLeft(settings.turnTimeLimit)
+    setPhase(currentPlayer?.isBot ? 'write' : 'pass')
+  }
+
+  // Write phase'e geçince timer başlat (sadece interval yönetimi — setState yok)
+  useEffect(() => {
+    if (phase !== 'write') {
+      stopTimer()
+      return
+    }
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -98,28 +111,8 @@ export function PlayingScreen({
         return t - 1
       })
     }, 1000)
-  }, [settings.turnTimeLimit, canPass, onPass, onSendHint, stopTimer])
-
-  // Write phase'e geçince timer başlat
-  useEffect(() => {
-    if (phase === 'write') {
-      startTimer()
-    } else {
-      stopTimer()
-    }
     return stopTimer
-  }, [phase, startTimer, stopTimer])
-
-  // Turn değişince phase'i resetle (botlar için 'write' phase'e direkt geç)
-  useEffect(() => {
-    setHintText('')
-    if (currentPlayer?.isBot) {
-      // Bot sırası — pass phase'i atla, bot otomasyonu (OfflineGame) ipucu gönderecek
-      setPhase('write')
-    } else {
-      setPhase('pass')
-    }
-  }, [turnIndex, currentPlayer])
+  }, [phase, canPass, onPass, onSendHint, stopTimer])
 
   // ─── Aksiyonlar ─────────────────────────────────────────────────────────────
   const handleSend = () => {
@@ -137,6 +130,7 @@ export function PlayingScreen({
   }
 
   const handleReady = () => {
+    setTimeLeft(settings.turnTimeLimit)
     setPhase('write')
   }
 
