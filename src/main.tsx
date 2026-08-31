@@ -7,8 +7,11 @@ import App from './App.tsx'
 // PWA service worker — autoUpdate + offline ready
 const updateSW = registerSW({
   onNeedRefresh() {
-    // Yeni sürüm var — kullanıcıya bildir (basit alert yerine console)
-    console.info('[PWA] Yeni sürüm hazır, yenileniyor...')
+    window.dispatchEvent(
+      new CustomEvent('pwa-update', {
+        detail: { apply: () => updateSW(true) },
+      }),
+    )
   },
   onOfflineReady() {
     console.info('[PWA] Offline hazır — uygulama internet olmadan çalışabilir')

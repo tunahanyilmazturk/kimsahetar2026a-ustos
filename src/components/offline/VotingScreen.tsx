@@ -49,7 +49,7 @@ export function VotingScreen({ players, votes, onVote, onFinish, onExit }: Votin
   }
 
   // ─── PASS phase ─────────────────────────────────────────────────────────────
-  if (phase === 'pass' && !allVoted) {
+  if (phase === 'pass' && !allVoted && currentVoter) {
     return (
       <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
         <motion.div

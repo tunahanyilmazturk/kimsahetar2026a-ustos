@@ -1,9 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import { LobbyScreen } from '../components/offline/LobbyScreen'
 import { OfflineGame } from '../OfflineGame'
 import { ToastProvider } from '../components/common/Toast'
+import { statsApi } from '../lib/profileApi'
 import type { Player, GameSettings } from '../types'
+
+vi.mock('../utils/bot', () => ({
+  generateBotHint: () => 'ipucu',
+  generateBotVote: ({ players, impostorId, voter }: { players: Player[]; impostorId: string; voter: Player }) =>
+    players.find((p) => p.id !== impostorId && p.id !== voter.id)?.id ?? players[0]!.id,
+  generateBotGuess: () => 'yanlış tahmin',
+}))
 
 // ─── Test Yardımcıları ────────────────────────────────────────────────────────
 
@@ -177,7 +185,10 @@ describe('LobbyScreen', () => {
 // ─── OfflineGame Smoke Testleri ────────────────────────────────────────────────
 
 describe('OfflineGame', () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => {
+    window.localStorage.clear()
+    Element.prototype.scrollIntoView = vi.fn()
+  })
 
   it('ilk render — Lobi ekranı gösterilir', () => {
     renderGame()
@@ -212,5 +223,40 @@ describe('OfflineGame', () => {
     // REVEAL ekranına geçmiş olmalı — "Sırada" veya kelime gösterimi olmalı
     // RevealScreen içeriğini kontrol et
     expect(screen.queryByText('Henüz oyuncu yok')).not.toBeTruthy()
+  })
+
+  it('sahtekar yakalanmazsa sonuçlar bir kez uygulanır', async () => {
+    vi.useFakeTimers()
+    try {
+      renderGame()
+      const addBotBtn = screen.getByText('Bot Ekle')
+      fireEvent.click(addBotBtn)
+      fireEvent.click(addBotBtn)
+      fireEvent.click(addBotBtn)
+      fireEvent.click(screen.getByText(/Başlat/i).closest('button')!)
+
+      // Üç oyuncunun reveal ekranında rolü gösterip gizle.
+      for (let i = 0; i < 3; i++) {
+        fireEvent.click(screen.getByText('Rolümü Gör'))
+        fireEvent.click(screen.getByText(/Gizle &|Oyuna Başla/))
+      }
+
+      // İki turun bot timer'larını çalıştır; ardından botların oylarını tamamla.
+      // Botların her bir gecikmesini kontrollü şekilde ilerlet; runAllTimers
+      // interval timer'ları nedeniyle sonsuz döngüye girebilir.
+      for (let i = 0; i < 20; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3000)
+        })
+      }
+      expect(screen.getByText('Oylama Tamamlandı')).toBeTruthy()
+      fireEvent.click(screen.getByText('Sonucu Açıklamaya Geç'))
+      fireEvent.click(screen.getByText('Devam Et'))
+
+      expect(screen.getByText('Sahtekar Kazandı!')).toBeTruthy()
+      expect(statsApi.get().gamesPlayed).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -58,6 +58,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
   const [impostorGuess, setImpostorGuess] = useState<string | null>(null)
   const [winner, setWinner] = useState<Winner | null>(null)
   const [awards, setAwards] = useState<Record<string, Award>>({})
+  const resultsAppliedRef = useRef(false)
 
   const updateSettings = useCallback((patch: Partial<GameSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }))
@@ -91,6 +92,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     setImpostorGuess(null)
     setWinner(null)
     setAwards({})
+    resultsAppliedRef.current = false
     setState('REVEAL')
   }, [players, settings])
 
@@ -262,11 +264,9 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
   // ─── Skor & ödül hesaplama ──────────────────────────────────────────────────
   // handleImpostorGuess'ten önce tanımlanmalı (immutability uyarısını önlemek için)
   const computeResults = useCallback(
-    (guessCorrect: boolean) => {
-      if (!impostorId || !winner) return
-
-      // Winner'ı geçici olarak ayarla (guessCorrect'e göre)
-      const finalWinner: Winner = guessCorrect ? 'IMPOSTOR' : 'PLAYERS'
+    (finalWinner: Winner) => {
+      if (!impostorId || !winner || resultsAppliedRef.current) return
+      resultsAppliedRef.current = true
 
       const newAwards: Record<string, Award> = {}
       const localPlayer = players[0] // İlk oyuncu yerel profil (offline modda)
@@ -359,10 +359,17 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
       }
 
       // Skor hesapla ve ödülleri oluştur
-      computeResults(guessCorrect)
+      computeResults(guessCorrect ? 'IMPOSTOR' : 'PLAYERS')
     },
     [currentWord, impostorId, computeResults],
   )
+
+  // Sahtekar yakalanmadıysa kelime tahmini aşaması atlanır; sonuçları burada uygula.
+  useEffect(() => {
+    if (state !== 'FINISHED' || !impostorId || !winner) return
+    if (votedImpostorId === impostorId || impostorGuess !== null) return
+    computeResults('IMPOSTOR')
+  }, [state, impostorId, winner, votedImpostorId, impostorGuess, computeResults])
 
   // ─── Bot otomasyonu: Finished (sahtekar bot kelime tahmini) ─────────────────
   // Eğer sahtekar yakalandıysa ve sahtekar bot ise, otomatik kelime tahmini yap.
@@ -435,6 +442,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
   if (state === 'PLAYING' && currentWord && currentPlayer) {
     return (
       <PlayingScreen
+        key={`${round}-${turnIndex}`}
         players={players}
         turnIndex={turnIndex}
         round={round}

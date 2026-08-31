@@ -63,10 +63,9 @@ export function PlayingScreen({
   onExit,
 }: PlayingScreenProps) {
   // ─── Alt-state: 'pass' (cihazı geç) | 'write' (ipucu yaz) ───────────────────
-  const [phase, setPhase] = useState<'pass' | 'write'>('pass')
+  const [phase, setPhase] = useState<'pass' | 'write'>(() => (players[turnIndex]?.isBot ? 'write' : 'pass'))
   const [hintText, setHintText] = useState('')
   const [timeLeft, setTimeLeft] = useState(settings.turnTimeLimit)
-  const [prevTurnIndex, setPrevTurnIndex] = useState(turnIndex)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const currentPlayer = players[turnIndex]
@@ -80,15 +79,6 @@ export function PlayingScreen({
       timerRef.current = null
     }
   }, [])
-
-  // Turn değişince phase'i resetle — render sırasında ayarla (effect içinde setState'ten kaçın)
-  // Bot sırası ise 'write' phase'e direkt geç, gerçek oyuncu ise 'pass' phase'inden başla.
-  if (prevTurnIndex !== turnIndex) {
-    setPrevTurnIndex(turnIndex)
-    setHintText('')
-    setTimeLeft(settings.turnTimeLimit)
-    setPhase(currentPlayer?.isBot ? 'write' : 'pass')
-  }
 
   // Write phase'e geçince timer başlat (sadece interval yönetimi — setState yok)
   useEffect(() => {

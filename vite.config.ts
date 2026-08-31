@@ -5,6 +5,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages repo alt yolunda çalışır; local ve diğer host'larda root kullanılır.
+  base: process.env.GITHUB_ACTIONS ? '/kimsahetar2026a-ustos/' : '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -61,4 +63,16 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('/react/')) return 'react-vendor'
+            if (id.includes('motion')) return 'motion'
+          }
+        },
+      },
+    },
+  },
 })

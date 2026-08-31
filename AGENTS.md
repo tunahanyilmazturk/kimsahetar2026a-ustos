@@ -39,7 +39,7 @@ npm run preview      # build önizleme
 | 11 | Yerel Liderlik (LeaderboardModal geliştirildi, otomatik kayıt) | ✅ Tamam |
 | 12 | PWA (vite-plugin-pwa, manifest, service worker, offline) | ✅ Tamam |
 | **13** | **Test & Polish** | **✅ Tamam** |
-| **14** | **Deployment** | **⏳ SIRADAKİ** |
+| **14** | **Deployment** | **✅ Hazır (GitHub Pages)** |
 
 ## Faz 13 Tamamlananlar (2026-08-31)
 - **Lint**: 7 uyarı düzeltildi (set-state-in-effect, only-export-components, immutability, exhaustive-deps)
@@ -48,12 +48,20 @@ npm run preview      # build önizleme
 - **OfflineGame.test.tsx**: 17 yeni component testi (LobbyScreen + state geçişleri)
 - **Erişilebilirlik**: type="button" tüm butonlara, aria-label icon-only butonlara + input'lara, renk kontrastı text-slate-500 → text-slate-400
 - **Performans**: VotingScreen voteCount/sortedVotes/humanPlayers useMemo, ChatPanel Map lookup, LobbyScreen realPlayers/botPlayers useMemo, static array'ler module scope'a taşındı (RoomSettingsModal, SettingsModal, MarketProfileModal, Avatar)
-- **Toplam**: 124 test (9 dosya), 0 lint uyarı, typecheck temiz, build başarılı
+- **Toplam**: 125 test (9 dosya), 0 lint uyarı, typecheck temiz, build başarılı
 
-## Sıradaki Adım: Faz 14 — Deployment
-- Production build optimizasyonu
-- Hosting (Vercel/Netlify/GitHub Pages)
-- Domain ve environment ayarları
+## Faz 14 Tamamlananlar (2026-08-31)
+- Production bundle splitting ve `OfflineGame` lazy loading
+- Kullanılmayan `qrcode.react` dependency'si kaldırıldı
+- GitHub Pages için conditional Vite `base` ayarı
+- GitHub Actions: typecheck, lint, test, build ve Pages deploy
+- PWA güncelleme prompt'u: yeni sürüm için kullanıcıya görünür yenileme seçeneği
+- README deployment ve geliştirme dokümantasyonu
+
+## Sıradaki Adım: Yayın sonrası kontrol
+- GitHub repository ayarlarında Pages kaynağının GitHub Actions olduğunu doğrula
+- İlk deployment sonrası PWA install/offline davranışını gerçek cihazda test et
+- Lighthouse ve gerçek cihaz responsive kontrolü
 
 ## Mimari Özet
 
@@ -113,7 +121,7 @@ LOBBY → REVEAL → PLAYING → VOTING → FINISHED
 - Finished: otomatik kelime tahmini (2-4sn gecikme, sahtekar yakalandıysa)
 
 ### Test Durumu
-- 9 test dosyası, 124 test — hepsi geçiyor
+- 9 test dosyası, 125 test — hepsi geçiyor
 - wordPool.test (14), bot.test (13), profileApi.test (16), questsApi.test (7),
   achievementsApi.test (5), storage.test (5), scoreSystem.test (17),
   edgeCases.test (30), OfflineGame.test.tsx (17)
@@ -135,7 +143,7 @@ LOBBY → REVEAL → PLAYING → VOTING → FINISHED
 - Online multiplayer YOK — aynı cihaz pass-device pattern
 - Capacitor/mobile YOK — PWA olarak çalışır
 - Tüm UI Türkçe
-- Tüm testler geçiyor (124/124)
+- Tüm testler geçiyor (125/125)
 - Build başarılı (~470 kB JS / 140 kB gzip)
 - Lint temiz (0 uyarı, 0 hata — oxlint)
 
@@ -154,25 +162,23 @@ npm install
 ```bash
 npm run dev        # dev server başlat → http://localhost:5173
 npm run typecheck  # hata yok mu kontrol et
-npm test           # 124 test geçiyor mu kontrol et
+npm test           # 125 test geçiyor mu kontrol et
 npm run lint       # 0 uyarı kontrol et (oxlint)
 npm run build      # build başarılı mı kontrol et
 ```
 
-### 3. Kaldığımız Yer: Faz 14 — Deployment
-**Faz 13 (Test & Polish) tamamlandı. Sıradaki Faz 14.**
+### 3. Kaldığımız Yer: Yayın sonrası kontrol
+**Faz 14 (Deployment) hazırlandı.**
 
-Faz 14'de yapılacaklar:
-- Production build optimizasyonu (bundle splitting, tree shaking kontrolü)
-- Hosting seçimi (Vercel/Netlify/GitHub Pages)
-- Domain ve environment ayarları
-- CI/CD pipeline (opsiyonel)
+- GitHub Actions workflow'u `main` push'larında build ve Pages deploy başlatır.
+- İlk kullanım öncesi repository Settings → Pages → Source: GitHub Actions seçilmelidir.
+- Yayın sonrası PWA install, offline cache ve mobil görünüm gerçek cihazda kontrol edilmelidir.
 
 ### 4. Devin ile Devam Etmek İçin
 Devin CLI'da projeyi aç ve şunu söyle:
-> "AGENTS.md'yi oku, Faz 14 — Deployment'a başla"
+> "AGENTS.md'yi oku, yayın sonrası kontrolü yap"
 
-Devin AGENTS.md'yi okuyacak, mevcut durumu anlayacak ve Faz 14'e başlayacak.
+Devin AGENTS.md'yi okuyacak, mevcut durumu anlayacak ve deployment sonrası kontrolleri sürdürecek.
 
 ### 5. Commit ve Push Pattern
 Her faz bitiminde:
