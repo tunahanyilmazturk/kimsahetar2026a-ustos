@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Avatar } from '../common/Avatar'
 import { cn } from '../../utils/cn'
@@ -20,6 +20,13 @@ export function ChatPanel({ messages, players, currentTurnPlayerId, className }:
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages.length])
 
+  // O(n²) lookup yerine Map kullan — her mesaj için players.find çağırmaktan kaçın
+  const avatarMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of players) map.set(p.id, p.avatar)
+    return map
+  }, [players])
+
   if (messages.length === 0) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-2 py-10 text-center', className)}>
@@ -29,7 +36,7 @@ export function ChatPanel({ messages, players, currentTurnPlayerId, className }:
     )
   }
 
-  const avatarOf = (playerId: string) => players.find((p) => p.id === playerId)?.avatar ?? 'avatar_default'
+  const avatarOf = (playerId: string) => avatarMap.get(playerId) ?? 'avatar_default'
 
   return (
     <div className={cn('space-y-2 overflow-y-auto', className)}>

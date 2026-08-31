@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { LobbyScreen } from './components/offline/LobbyScreen'
 import { RevealScreen } from './components/offline/RevealScreen'
 import { PlayingScreen } from './components/offline/PlayingScreen'
@@ -402,7 +402,6 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
   }, [players, startGame])
 
   // ─── Render ─────────────────────────────────────────────────────────────────
-  const currentWordEntry = useMemo(() => currentWord, [currentWord])
   const currentPlayer = players[turnIndex]
   const isCurrentImpostor = currentPlayer?.id === impostorId
 
@@ -419,21 +418,21 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     )
   }
 
-  if (state === 'REVEAL' && currentWordEntry) {
+  if (state === 'REVEAL' && currentWord) {
     return (
       <RevealScreen
         players={players}
         currentIndex={revealIndex}
         isImpostor={players[revealIndex]?.id === impostorId}
-        word={currentWordEntry.word}
-        category={currentWordEntry.category}
-        hint={currentWordEntry.hint}
+        word={currentWord.word}
+        category={currentWord.category}
+        hint={currentWord.hint}
         onNext={nextReveal}
       />
     )
   }
 
-  if (state === 'PLAYING' && currentWordEntry && currentPlayer) {
+  if (state === 'PLAYING' && currentWord && currentPlayer) {
     return (
       <PlayingScreen
         players={players}
@@ -442,9 +441,9 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
         chat={chat}
         settings={settings}
         isCurrentImpostor={isCurrentImpostor ?? false}
-        currentWord={currentWordEntry.word}
-        currentHint={currentWordEntry.hint}
-        currentCategory={currentWordEntry.category}
+        currentWord={currentWord.word}
+        currentHint={currentWord.hint}
+        currentCategory={currentWord.category}
         hintedThisRound={hintedThisRound}
         passedThisRound={passedThisRound}
         passUsed={settings.passUsed}
@@ -469,13 +468,13 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     )
   }
 
-  if (state === 'FINISHED' && currentWordEntry && impostorId && winner) {
+  if (state === 'FINISHED' && currentWord && impostorId && winner) {
     return (
       <FinishedScreen
         players={players}
         impostorId={impostorId}
-        word={currentWordEntry.word}
-        category={currentWordEntry.category}
+        word={currentWord.word}
+        category={currentWord.category}
         winner={winner}
         votedImpostorId={votedImpostorId}
         impostorGuess={impostorGuess}

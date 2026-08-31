@@ -20,6 +20,13 @@ export interface MarketProfileModalProps {
   onClose: () => void
 }
 
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'profile', label: 'Profil' },
+  { id: 'avatars', label: 'Avatarlar' },
+  { id: 'frames', label: 'Çerçeveler' },
+  { id: 'achievements', label: 'Başarımlar' },
+]
+
 export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   const [tab, setTab] = useState<Tab>('profile')
   const { profile, inventory, updateProfile, buyAvatar, buyFrame, equipAvatar, equipFrame } =
@@ -63,13 +70,6 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
     if (equipFrame(id)) toast.success(id ? 'Çerçeve donatıldı' : 'Çerçeve kaldırıldı')
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'profile', label: 'Profil' },
-    { id: 'avatars', label: 'Avatarlar' },
-    { id: 'frames', label: 'Çerçeveler' },
-    { id: 'achievements', label: 'Başarımlar' },
-  ]
-
   return (
     <Modal open={open} onClose={onClose} title="Profil & Market" size="lg">
       {/* Üst özet — coin + level */}
@@ -89,7 +89,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
 
       {/* Tab seçici */}
       <div className="mb-4 flex gap-1 rounded-xl bg-slate-800/60 p-1">
-        {tabs.map((t) => (
+        {TABS.map((t) => (
           <button
             key={t.id}
             type="button"

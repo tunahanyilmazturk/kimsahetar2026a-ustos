@@ -47,22 +47,24 @@ export function Avatar({ avatarId, frameId, size = 'md', className, hideFrame }:
 }
 
 /** Rarity rozet etiketi (küçük chip). */
+const RARITY_LABELS: Record<FrameRarity, string> = {
+  COMMON: 'Yaygın',
+  RARE: 'Nadir',
+  EPIC: 'Epik',
+  LEGENDARY: 'Efsanevi',
+}
+
+const RARITY_COLORS: Record<FrameRarity, string> = {
+  COMMON: 'bg-slate-700 text-slate-300',
+  RARE: 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/40',
+  EPIC: 'bg-purple-600/20 text-purple-300 ring-1 ring-purple-500/40',
+  LEGENDARY: 'bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-400/50',
+}
+
 export function RarityBadge({ rarity }: { rarity: FrameRarity }) {
-  const labels: Record<FrameRarity, string> = {
-    COMMON: 'Yaygın',
-    RARE: 'Nadir',
-    EPIC: 'Epik',
-    LEGENDARY: 'Efsanevi',
-  }
-  const colors: Record<FrameRarity, string> = {
-    COMMON: 'bg-slate-700 text-slate-300',
-    RARE: 'bg-blue-600/20 text-blue-300 ring-1 ring-blue-500/40',
-    EPIC: 'bg-purple-600/20 text-purple-300 ring-1 ring-purple-500/40',
-    LEGENDARY: 'bg-fuchsia-600/20 text-fuchsia-300 ring-1 ring-fuchsia-400/50',
-  }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', colors[rarity])}>
-      {labels[rarity]}
+    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', RARITY_COLORS[rarity])}>
+      {RARITY_LABELS[rarity]}
     </span>
   )
 }

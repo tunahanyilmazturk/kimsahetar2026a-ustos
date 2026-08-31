@@ -12,6 +12,9 @@ export interface SettingsModalProps {
   onClose: () => void
 }
 
+const BOT_DIFFICULTIES: BotDifficulty[] = ['EASY', 'SMART', 'EXPERT']
+const WORD_DIFFICULTIES: WordDifficulty[] = ['EASY', 'MEDIUM', 'HARD', 'MIXED']
+
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { settings, update, reset } = useSettings()
   const toast = useToast()
@@ -104,7 +107,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div>
               <label className="mb-1.5 block text-sm text-slate-300">Bot Zorluğu</label>
               <div className="grid grid-cols-3 gap-2">
-                {(['EASY', 'SMART', 'EXPERT'] as BotDifficulty[]).map((d) => (
+                {BOT_DIFFICULTIES.map((d) => (
                   <button
                     key={d}
                     type="button"
@@ -126,7 +129,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div>
               <label className="mb-1.5 block text-sm text-slate-300">Kelime Zorluğu</label>
               <div className="grid grid-cols-4 gap-2">
-                {(['EASY', 'MEDIUM', 'HARD', 'MIXED'] as WordDifficulty[]).map((d) => (
+                {WORD_DIFFICULTIES.map((d) => (
                   <button
                     key={d}
                     type="button"

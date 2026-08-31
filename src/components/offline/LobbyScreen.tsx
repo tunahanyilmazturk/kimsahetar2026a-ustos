@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   Trash2,
@@ -40,8 +40,8 @@ export function LobbyScreen({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
-  const realPlayers = players.filter((p) => !p.isBot)
-  const botPlayers = players.filter((p) => p.isBot)
+  const realPlayers = useMemo(() => players.filter((p) => !p.isBot), [players])
+  const botPlayers = useMemo(() => players.filter((p) => p.isBot), [players])
   const canStart = players.length >= 3 && players.length <= 12
 
   const addPlayer = () => {

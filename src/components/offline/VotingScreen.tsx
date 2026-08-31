@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { Vote, Check, ArrowRight, ArrowLeft, Users } from 'lucide-react'
 import { Button } from '../common/Button'
 import { Avatar } from '../common/Avatar'
+import { countVotes } from '../../utils/gameUtils'
 import { cn } from '../../utils/cn'
 import type { Player } from '../../types'
 
@@ -22,15 +23,17 @@ export function VotingScreen({ players, votes, onVote, onFinish, onExit }: Votin
   const [voterIndex, setVoterIndex] = useState(0)
 
   // Sadece gerçek oyuncuları sıraya al (botlar OfflineGame tarafından otomatik oy verir)
-  const humanPlayers = players.filter((p) => !p.isBot)
+  const humanPlayers = useMemo(() => players.filter((p) => !p.isBot), [players])
   const currentVoter = humanPlayers[voterIndex]
   const allVoted = players.every((p) => votes[p.id])
 
   // ─── Oy sayımı (canlı) ──────────────────────────────────────────────────────
-  const voteCount: Record<string, number> = {}
-  for (const targetId of Object.values(votes)) {
-    voteCount[targetId] = (voteCount[targetId] ?? 0) + 1
-  }
+  const { voteCount } = useMemo(() => countVotes(votes), [votes])
+  // Sonuç özeti için sıralı oylar (tüm oylar verildiğinde kullanılır)
+  const sortedVotes = useMemo(
+    () => Object.entries(voteCount).sort((a, b) => b[1] - a[1]),
+    [voteCount],
+  )
 
   const handleVote = (targetId: string) => {
     if (!currentVoter) return
@@ -199,7 +202,6 @@ export function VotingScreen({ players, votes, onVote, onFinish, onExit }: Votin
   }
 
   // ─── Tüm oylar verildi → Sonuç özeti ────────────────────────────────────────
-  const sortedVotes = Object.entries(voteCount).sort((a, b) => b[1] - a[1])
   const topVoted = sortedVotes[0]
 
   return (

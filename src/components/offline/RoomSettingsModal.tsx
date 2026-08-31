@@ -14,6 +14,10 @@ export interface RoomSettingsModalProps {
   onChange: (patch: Partial<GameSettings>) => void
 }
 
+const ROUND_OPTIONS = [1, 2, 3, 4, 5] as const
+const WORD_DIFFICULTIES: WordDifficulty[] = ['EASY', 'MEDIUM', 'HARD', 'MIXED']
+const BOT_DIFFICULTIES: BotDifficulty[] = ['EASY', 'SMART', 'EXPERT']
+
 export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSettingsModalProps) {
   const toast = useToast()
   const [customWordInput, setCustomWordInput] = useState('')
@@ -91,7 +95,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
             </span>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
+            {ROUND_OPTIONS.map((n) => (
               <button
                 key={n}
                 type="button"
@@ -113,7 +117,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
         <section>
           <label className="mb-2 block text-sm font-semibold text-slate-200">Kelime Zorluğu</label>
           <div className="grid grid-cols-4 gap-2">
-            {(['EASY', 'MEDIUM', 'HARD', 'MIXED'] as WordDifficulty[]).map((d) => (
+            {WORD_DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"
@@ -135,7 +139,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
         <section>
           <label className="mb-2 block text-sm font-semibold text-slate-200">Bot Zorluğu</label>
           <div className="grid grid-cols-3 gap-2">
-            {(['EASY', 'SMART', 'EXPERT'] as BotDifficulty[]).map((d) => (
+            {BOT_DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"
