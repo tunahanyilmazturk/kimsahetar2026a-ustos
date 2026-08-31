@@ -129,3 +129,56 @@ LOBBY → REVEAL → PLAYING → VOTING → FINISHED
 - Tüm UI Türkçe
 - Tüm testler geçiyor (64/64)
 - Build başarılı (~469 kB JS / 140 kB gzip)
+
+---
+
+## 🏠 Evde Devam Etme Talimatları
+
+### 1. Projeyi İndir
+```bash
+git clone https://github.com/tunahanyilmazturk/kimsahetar2026a-ustos.git
+cd kimsahetar2026a-ustos
+npm install
+```
+
+### 2. Çalıştır ve Doğrula
+```bash
+npm run dev        # dev server başlat → http://localhost:5173
+npm run typecheck  # hata yok mu kontrol et
+npm test           # 64 test geçiyor mu kontrol et
+npm run build      # build başarılı mı kontrol et
+```
+
+### 3. Kaldığımız Yer: Faz 13 — Test & Polish
+**Faz 12 (PWA) tamamlandı. Sıradaki Faz 13.**
+
+Faz 13'de yapılacaklar:
+- Ek unit testler: `scoreSystem.test.ts` genişlet, `OfflineGame` state geçişleri için test
+- Edge case'ler: 0 oyuncu, 1 oyuncu, tüm oyuncular pas, berabere oylama
+- UI polish: animasyon geçişleri, mobile responsive iyileştirmeleri
+- Erişilebilirlik: `aria-label` eksikleri, klavye navigasyonu, renk kontrastı
+- Performans: `useMemo`/`useCallback` gözden geçirme, bundle analizi
+- Lint: `npm run lint` (oxlint) çalıştır, uyarıları düzelt
+
+### 4. Devin ile Devam Etmek İçin
+Devin CLI'da projeyi aç ve şunu söyle:
+> "AGENTS.md'yi oku, Faz 13 — Test & Polish'e başla"
+
+Devin AGENTS.md'yi okuyacak, mevcut durumu anlayacak ve Faz 13'e başlayacak.
+
+### 5. Commit ve Push Pattern
+Her faz bitiminde:
+```bash
+git add -A
+git commit -m "Faz X: ..."
+git push
+```
+
+### 6. Dosya Yapısı Hakkında Hızlı Not
+- `src/OfflineGame.tsx` — ana oyun state makinesi (burayı anlamak önemli)
+- `src/components/offline/` — tüm oyun ekranları
+- `src/components/menu/` — ana menü ve modal'lar
+- `src/lib/` — API katmanı (profileApi, questsApi, achievementsApi, scoreSystem)
+- `src/utils/` — wordPool (kelime seçimi), bot (bot davranışları)
+- `src/config/` — sabit veriler (kelimeler, başarımlar, avatarlar, görevler)
+- `src/types.ts` — tüm TypeScript tipleri
