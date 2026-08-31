@@ -47,8 +47,9 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
       footer={
         entries.length > 0 && (
           <button
+            type="button"
             onClick={handleClear}
-            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-400 transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-400 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Tabloyu temizle

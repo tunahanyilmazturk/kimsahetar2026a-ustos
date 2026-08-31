@@ -177,17 +177,19 @@ export function FinishedScreen({
               onKeyDown={(e) => e.key === 'Enter' && handleGuess()}
               placeholder="Kelime tahminin..."
               maxLength={30}
+              aria-label="Kelime tahmini"
               className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-amber-400 placeholder:text-slate-500"
               autoFocus
             />
-            <Button onClick={handleGuess} disabled={!guessText.trim()}>
+            <Button onClick={handleGuess} disabled={!guessText.trim()} aria-label="Tahmini gönder">
               <Send className="h-4 w-4" />
             </Button>
           </div>
 
           <button
+            type="button"
             onClick={handleSkipGuess}
-            className="text-sm text-slate-500 hover:text-slate-300 transition-colors min-h-11 px-3"
+            className="text-sm text-slate-400 hover:text-slate-300 transition-colors min-h-11 px-3"
           >
             Tahmin yapmadan geç
           </button>

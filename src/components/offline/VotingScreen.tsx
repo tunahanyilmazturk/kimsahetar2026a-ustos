@@ -105,6 +105,7 @@ export function VotingScreen({ players, votes, onVote, onFinish, onExit }: Votin
       <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex flex-col px-4 py-4">
         <div className="flex items-center justify-between mb-4">
           <button
+            type="button"
             onClick={onExit}
             className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors min-h-11"
           >
@@ -143,8 +144,10 @@ export function VotingScreen({ players, votes, onVote, onFinish, onExit }: Votin
               return (
                 <motion.button
                   key={p.id}
+                  type="button"
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleVote(p.id)}
+                  aria-label={`${p.name} için oy ver`}
                   className={cn(
                     'flex flex-col items-center gap-2 rounded-xl p-3 ring-1 transition-colors min-h-11',
                     voted

@@ -111,6 +111,7 @@ export function LobbyScreen({
       {/* ─── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <button
+          type="button"
           onClick={onExit}
           className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors min-h-11"
         >
@@ -122,7 +123,9 @@ export function LobbyScreen({
           Lobi
         </h1>
         <button
+          type="button"
           onClick={() => setSettingsOpen(true)}
+          aria-label="Oda ayarları"
           className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors min-h-11"
         >
           <SettingsIcon className="h-5 w-5" />
@@ -138,9 +141,10 @@ export function LobbyScreen({
           onKeyDown={(e) => e.key === 'Enter' && addPlayer()}
           placeholder="Oyuncu ismi..."
           maxLength={16}
+          aria-label="Oyuncu ismi"
           className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400 placeholder:text-slate-500"
         />
-        <Button onClick={addPlayer} disabled={!newName.trim()}>
+        <Button onClick={addPlayer} disabled={!newName.trim()} aria-label="Oyuncu ekle">
           <UserPlus className="h-4 w-4" />
           <span className="hidden sm:inline">Ekle</span>
         </Button>
@@ -173,8 +177,9 @@ export function LobbyScreen({
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => removePlayer(p.id)}
-                className="text-slate-500 hover:text-rose-400 transition-colors p-1.5 min-h-11 min-w-11 flex items-center justify-center"
+                className="text-slate-400 hover:text-rose-400 transition-colors p-1.5 min-h-11 min-w-11 flex items-center justify-center"
                 aria-label={`${p.name} kaldır`}
               >
                 <Trash2 className="h-4 w-4" />

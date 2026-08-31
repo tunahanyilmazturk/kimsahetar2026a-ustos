@@ -37,12 +37,13 @@ const BASE =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950'
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', fullWidth, loading, className, children, disabled, ...rest },
+  { variant = 'primary', size = 'md', fullWidth, loading, className, children, disabled, type = 'button', ...rest },
   ref,
 ) {
   return (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || loading}
       className={cn(BASE, VARIANTS[variant], SIZES[size], fullWidth && 'w-full', className)}
       {...rest}

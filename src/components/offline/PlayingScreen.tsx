@@ -193,6 +193,7 @@ export function PlayingScreen({
       {/* ─── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-3">
         <button
+          type="button"
           onClick={onExit}
           className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors min-h-11"
         >
@@ -302,16 +303,17 @@ export function PlayingScreen({
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={isCurrentImpostor ? 'İpucu ver (kelimeyi tahmin etmeye çalış)...' : 'İpucu yaz...'}
             maxLength={100}
+            aria-label="İpucu"
             className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400 placeholder:text-slate-500"
             autoFocus
           />
           {canPass && (
-            <Button variant="secondary" onClick={handlePass} disabled={hintText.trim().length > 0}>
+            <Button variant="secondary" onClick={handlePass} disabled={hintText.trim().length > 0} aria-label="Pas geç">
               <SkipForward className="h-4 w-4" />
               <span className="hidden sm:inline">Pas</span>
             </Button>
           )}
-          <Button onClick={handleSend} disabled={!hintText.trim()}>
+          <Button onClick={handleSend} disabled={!hintText.trim()} aria-label="İpucu gönder">
             <Send className="h-4 w-4" />
             <span className="hidden sm:inline">Gönder</span>
           </Button>

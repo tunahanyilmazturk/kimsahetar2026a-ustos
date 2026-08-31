@@ -490,7 +490,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
   // Fallback
   return (
     <div className="min-h-svh w-full bg-slate-950 text-slate-100 flex items-center justify-center">
-      <button onClick={onExit} className="text-slate-400 hover:text-slate-100">
+      <button type="button" onClick={onExit} className="text-slate-400 hover:text-slate-100">
         Ana Menüye Dön
       </button>
     </div>

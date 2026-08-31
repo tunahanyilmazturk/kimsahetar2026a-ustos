@@ -73,6 +73,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
             step={5}
             value={settings.turnTimeLimit}
             onChange={(e) => onChange({ turnTimeLimit: Number(e.target.value) })}
+            aria-label="Tur süresi"
             className="w-full accent-indigo-500"
           />
           <div className="flex justify-between text-xs text-slate-500 mt-1">
@@ -93,6 +94,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
+                type="button"
                 onClick={() => onChange({ roundsBeforeVoting: n })}
                 className={cn(
                   'rounded-lg py-2.5 text-sm font-medium transition-colors min-h-11',
@@ -114,6 +116,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
             {(['EASY', 'MEDIUM', 'HARD', 'MIXED'] as WordDifficulty[]).map((d) => (
               <button
                 key={d}
+                type="button"
                 onClick={() => onChange({ wordDifficulty: d })}
                 className={cn(
                   'rounded-lg py-2.5 text-xs font-medium transition-colors min-h-11',
@@ -135,6 +138,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
             {(['EASY', 'SMART', 'EXPERT'] as BotDifficulty[]).map((d) => (
               <button
                 key={d}
+                type="button"
                 onClick={() => onChange({ botDifficulty: d })}
                 className={cn(
                   'rounded-lg py-2.5 text-sm font-medium transition-colors min-h-11',
@@ -163,6 +167,7 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
               return (
                 <button
                   key={cat}
+                  type="button"
                   onClick={() => toggleCategory(cat)}
                   className={cn(
                     'flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-11',
@@ -195,9 +200,10 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
               onKeyDown={(e) => e.key === 'Enter' && addCustomWord()}
               placeholder="Kelime ekle..."
               maxLength={30}
+              aria-label="Özel kelime ekle"
               className="flex-1 rounded-lg bg-slate-800 px-3 py-2.5 text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400 placeholder:text-slate-500"
             />
-            <Button size="md" onClick={addCustomWord} disabled={!customWordInput.trim()}>
+            <Button size="md" onClick={addCustomWord} disabled={!customWordInput.trim()} aria-label="Kelime ekle">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -210,8 +216,9 @@ export function RoomSettingsModal({ open, onClose, settings, onChange }: RoomSet
                 >
                   {w}
                   <button
+                    type="button"
                     onClick={() => removeCustomWord(w)}
-                    className="text-slate-500 hover:text-rose-400 transition-colors"
+                    className="text-slate-400 hover:text-rose-400 transition-colors"
                     aria-label={`${w} kaldır`}
                   >
                     <X className="h-3.5 w-3.5" />

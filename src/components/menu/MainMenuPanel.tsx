@@ -81,10 +81,12 @@ export function MainMenuPanel({ onPlay }: MainMenuPanelProps) {
 
       {/* ─── Profil Kartı ───────────────────────────────────────────── */}
       <motion.button
+        type="button"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
         onClick={() => setProfileOpen(true)}
+        aria-label="Profili düzenle"
         className="mb-6 flex w-full max-w-md items-center gap-3 rounded-2xl bg-slate-900/80 ring-1 ring-slate-800 px-4 py-3 shadow-xl transition-colors hover:ring-indigo-500/50 min-h-11"
       >
         <Avatar avatarId={inventory.equippedAvatar} frameId={inventory.equippedFrame} size="md" />

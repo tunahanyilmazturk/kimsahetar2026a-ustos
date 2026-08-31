@@ -89,6 +89,7 @@ export function Modal({
                 <h2 className="text-lg font-semibold text-slate-100 truncate">{title}</h2>
                 {!hideClose && (
                   <button
+                    type="button"
                     onClick={onClose}
                     aria-label="Kapat"
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors min-h-11 min-w-11"

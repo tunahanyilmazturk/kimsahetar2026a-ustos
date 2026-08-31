@@ -75,6 +75,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 step={5}
                 value={settings.defaultTurnTimeLimit}
                 onChange={(e) => update({ defaultTurnTimeLimit: Number(e.target.value) })}
+                aria-label="Tur süresi"
                 className="w-full accent-indigo-500"
               />
             </div>
@@ -94,6 +95,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 step={1}
                 value={settings.defaultRoundsBeforeVoting}
                 onChange={(e) => update({ defaultRoundsBeforeVoting: Number(e.target.value) })}
+                aria-label="Oylama öncesi tur sayısı"
                 className="w-full accent-indigo-500"
               />
             </div>
@@ -105,6 +107,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 {(['EASY', 'SMART', 'EXPERT'] as BotDifficulty[]).map((d) => (
                   <button
                     key={d}
+                    type="button"
                     onClick={() => update({ defaultBotDifficulty: d })}
                     className={cn(
                       'rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-11',
@@ -126,6 +129,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 {(['EASY', 'MEDIUM', 'HARD', 'MIXED'] as WordDifficulty[]).map((d) => (
                   <button
                     key={d}
+                    type="button"
                     onClick={() => update({ defaultWordDifficulty: d })}
                     className={cn(
                       'rounded-lg px-2 py-2 text-xs font-medium transition-colors min-h-11',
@@ -167,6 +171,7 @@ function ToggleRow({
 }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!checked)}
       className={cn(
         'flex w-full items-center gap-3 rounded-xl px-4 py-3 ring-1 transition-colors text-left min-h-11',

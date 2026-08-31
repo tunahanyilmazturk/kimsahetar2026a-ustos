@@ -92,6 +92,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
         {tabs.map((t) => (
           <button
             key={t.id}
+            type="button"
             onClick={() => setTab(t.id)}
             className={cn(
               'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-11',
@@ -121,6 +122,7 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
                     value={nameDraft}
                     onChange={(e) => setNameDraft(e.target.value)}
                     maxLength={16}
+                    aria-label="Kullanıcı adı"
                     className="flex-1 rounded-lg bg-slate-800 px-3 py-2 text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400"
                     autoFocus
                   />
