@@ -38,16 +38,22 @@ npm run preview      # build önizleme
 | 10 | Günlük Görevler (DailyQuestsModal, ödül talebi, rozet) | ✅ Tamam |
 | 11 | Yerel Liderlik (LeaderboardModal geliştirildi, otomatik kayıt) | ✅ Tamam |
 | 12 | PWA (vite-plugin-pwa, manifest, service worker, offline) | ✅ Tamam |
-| **13** | **Test & Polish** | **⏳ SIRADAKİ** |
-| 14 | Deployment | ⏳ Bekliyor |
+| **13** | **Test & Polish** | **✅ Tamam** |
+| **14** | **Deployment** | **⏳ SIRADAKİ** |
 
-## Sıradaki Adım: Faz 13 — Test & Polish
-- Ek unit testler (scoreSystem, OfflineGame state geçişleri)
-- Edge case'ler (0 oyuncu, 1 oyuncu, tüm pas, berabere oylama)
-- UI polish (animasyonlar, geçişler, responsive)
-- Erişilebilirlik (aria-label, klavye navigasyonu, renk kontrastı)
-- Performans (memoization, bundle analizi)
-- Lint (oxlint)
+## Faz 13 Tamamlananlar (2026-08-31)
+- **Lint**: 7 uyarı düzeltildi (set-state-in-effect, only-export-components, immutability, exhaustive-deps)
+- **Edge case testleri**: 30 yeni test (0/1 oyuncu, tüm pas, berabere oylama, pickWord bug fix)
+- **scoreSystem.test.ts**: 13 yeni test (leaderboard, XP, coin, win streak)
+- **OfflineGame.test.tsx**: 17 yeni component testi (LobbyScreen + state geçişleri)
+- **Erişilebilirlik**: type="button" tüm butonlara, aria-label icon-only butonlara + input'lara, renk kontrastı text-slate-500 → text-slate-400
+- **Performans**: VotingScreen voteCount/sortedVotes/humanPlayers useMemo, ChatPanel Map lookup, LobbyScreen realPlayers/botPlayers useMemo, static array'ler module scope'a taşındı (RoomSettingsModal, SettingsModal, MarketProfileModal, Avatar)
+- **Toplam**: 124 test (9 dosya), 0 lint uyarı, typecheck temiz, build başarılı
+
+## Sıradaki Adım: Faz 14 — Deployment
+- Production build optimizasyonu
+- Hosting (Vercel/Netlify/GitHub Pages)
+- Domain ve environment ayarları
 
 ## Mimari Özet
 
@@ -107,8 +113,10 @@ LOBBY → REVEAL → PLAYING → VOTING → FINISHED
 - Finished: otomatik kelime tahmini (2-4sn gecikme, sahtekar yakalandıysa)
 
 ### Test Durumu
-- 7 test dosyası, 64 test — hepsi geçiyor
-- wordPool.test (14), bot.test (13), profileApi.test, questsApi.test, achievementsApi.test, ...
+- 9 test dosyası, 124 test — hepsi geçiyor
+- wordPool.test (14), bot.test (13), profileApi.test (16), questsApi.test (7),
+  achievementsApi.test (5), storage.test (5), scoreSystem.test (17),
+  edgeCases.test (30), OfflineGame.test.tsx (17)
 
 ### Kelime Havuzu
 - 204 kelime, 12 kategori (Seyahat, Kamp, Müzik, Yiyecek, Spor, Doğa, Meslek,
@@ -127,8 +135,9 @@ LOBBY → REVEAL → PLAYING → VOTING → FINISHED
 - Online multiplayer YOK — aynı cihaz pass-device pattern
 - Capacitor/mobile YOK — PWA olarak çalışır
 - Tüm UI Türkçe
-- Tüm testler geçiyor (64/64)
-- Build başarılı (~469 kB JS / 140 kB gzip)
+- Tüm testler geçiyor (124/124)
+- Build başarılı (~470 kB JS / 140 kB gzip)
+- Lint temiz (0 uyarı, 0 hata — oxlint)
 
 ---
 
@@ -145,26 +154,25 @@ npm install
 ```bash
 npm run dev        # dev server başlat → http://localhost:5173
 npm run typecheck  # hata yok mu kontrol et
-npm test           # 64 test geçiyor mu kontrol et
+npm test           # 124 test geçiyor mu kontrol et
+npm run lint       # 0 uyarı kontrol et (oxlint)
 npm run build      # build başarılı mı kontrol et
 ```
 
-### 3. Kaldığımız Yer: Faz 13 — Test & Polish
-**Faz 12 (PWA) tamamlandı. Sıradaki Faz 13.**
+### 3. Kaldığımız Yer: Faz 14 — Deployment
+**Faz 13 (Test & Polish) tamamlandı. Sıradaki Faz 14.**
 
-Faz 13'de yapılacaklar:
-- Ek unit testler: `scoreSystem.test.ts` genişlet, `OfflineGame` state geçişleri için test
-- Edge case'ler: 0 oyuncu, 1 oyuncu, tüm oyuncular pas, berabere oylama
-- UI polish: animasyon geçişleri, mobile responsive iyileştirmeleri
-- Erişilebilirlik: `aria-label` eksikleri, klavye navigasyonu, renk kontrastı
-- Performans: `useMemo`/`useCallback` gözden geçirme, bundle analizi
-- Lint: `npm run lint` (oxlint) çalıştır, uyarıları düzelt
+Faz 14'de yapılacaklar:
+- Production build optimizasyonu (bundle splitting, tree shaking kontrolü)
+- Hosting seçimi (Vercel/Netlify/GitHub Pages)
+- Domain ve environment ayarları
+- CI/CD pipeline (opsiyonel)
 
 ### 4. Devin ile Devam Etmek İçin
 Devin CLI'da projeyi aç ve şunu söyle:
-> "AGENTS.md'yi oku, Faz 13 — Test & Polish'e başla"
+> "AGENTS.md'yi oku, Faz 14 — Deployment'a başla"
 
-Devin AGENTS.md'yi okuyacak, mevcut durumu anlayacak ve Faz 13'e başlayacak.
+Devin AGENTS.md'yi okuyacak, mevcut durumu anlayacak ve Faz 14'e başlayacak.
 
 ### 5. Commit ve Push Pattern
 Her faz bitiminde:
