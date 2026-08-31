@@ -6,6 +6,7 @@ import { OnlineLobby } from './OnlineLobby'
 import { AuthScreen } from './components/auth/AuthScreen'
 import { authApi } from './lib/authApi'
 import { useSettings } from './hooks/useSettings'
+import { WelcomeIntro } from './components/auth/WelcomeIntro'
 
 // OfflineGame sadece "Oyna" tıklandığında gerekir — lazy-load ile ayrı chunk
 const OfflineGame = lazy(() =>
@@ -17,9 +18,11 @@ type Screen = 'menu' | 'game' | 'online'
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [authenticated, setAuthenticated] = useState(() => Boolean(authApi.current()))
+  const [introSeen, setIntroSeen] = useState(() => localStorage.getItem('sahtekar:intro-seen') === '1')
   const { settings } = useSettings()
 
   if (!authenticated) return <AuthScreen onSuccess={() => setAuthenticated(true)} />
+  if (!introSeen) return <WelcomeIntro onDone={() => setIntroSeen(true)} />
 
   if (screen === 'game') {
     return (

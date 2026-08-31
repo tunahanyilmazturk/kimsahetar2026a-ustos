@@ -152,7 +152,7 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
           hidden: {},
           show: { transition: { staggerChildren: 0.08, delayChildren: 0.25 } },
         }}
-        className="flex w-full max-w-md flex-col gap-3"
+        className="menu-buttons flex w-full max-w-md flex-col gap-3"
       >
         <motion.div
           variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
