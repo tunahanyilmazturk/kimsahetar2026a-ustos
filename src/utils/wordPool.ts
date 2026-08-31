@@ -35,6 +35,10 @@ export function pickWord(args: {
   // 2. Kategori filtresi
   const activeCategories = categories.length > 0 ? categories : CATEGORIES
   let pool = WORD_POOL.filter((w) => activeCategories.includes(w.category))
+  // Kategori filtresi havuzu boşaltıysa (geçersiz kategori) → tüm havuza dön
+  if (pool.length === 0) {
+    pool = WORD_POOL
+  }
 
   // 3. Zorluk filtresi (MIXED hariç)
   if (difficulty !== 'MIXED') {

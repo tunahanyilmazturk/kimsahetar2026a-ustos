@@ -8,6 +8,7 @@ import { useSettings } from './hooks/useSettings'
 import { useToast } from './components/common/toast-context'
 import { pickWord, pickImpostor, updateRecentWords, randomId } from './utils/wordPool'
 import { generateBotHint, generateBotVote, generateBotGuess } from './utils/bot'
+import { countVotes, isGuessCorrect } from './utils/gameUtils'
 import { CATEGORIES } from './constants'
 import { applyGameResult } from './lib/scoreSystem'
 import { questsApi } from './lib/questsApi'
@@ -242,12 +243,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
     if (!impostorId) return
 
     // En çok oy alan oyuncuyu bul
-    const voteCount: Record<string, number> = {}
-    for (const targetId of Object.values(votes)) {
-      voteCount[targetId] = (voteCount[targetId] ?? 0) + 1
-    }
-    const sorted = Object.entries(voteCount).sort((a, b) => b[1] - a[1])
-    const topVotedId = sorted[0]?.[0] ?? null
+    const { topVotedId } = countVotes(votes)
 
     setVotedImpostorId(topVotedId)
 
@@ -352,7 +348,7 @@ export function OfflineGame({ onExit }: OfflineGameProps) {
       setImpostorGuess(guess)
       if (!currentWord || !impostorId) return
 
-      const guessCorrect = guess.trim().toLowerCase() === currentWord.word.toLowerCase()
+      const guessCorrect = isGuessCorrect(guess, currentWord.word)
       // Sahtekar yakalandı (votedImpostorId === impostorId)
       // Eğer kelimeyi de bilirse → IMPOSTOR kazanır
       // Bilmezse → PLAYERS kazanır
