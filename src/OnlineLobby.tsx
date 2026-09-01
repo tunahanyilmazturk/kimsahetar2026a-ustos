@@ -188,12 +188,16 @@ export function OnlineLobby({
 
     // Chat'i yükle
     const loadChat = async () => {
-      const { data: chatData } = await supabase
+      const { data: chatData, error: chatError } = await supabase
         .from('room_chat')
         .select('*')
         .eq('room_id', activeRoomId)
         .order('created_at', { ascending: true })
-      setChat(chatData ?? [])
+      if (chatError) {
+        console.warn('[chat] Yükleme hatası:', chatError.message)
+        return
+      }
+      setChat((chatData ?? []) as ChatMsg[])
     }
     void loadChat()
 
@@ -212,7 +216,11 @@ export function OnlineLobby({
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'room_chat', filter: `room_id=eq.${activeRoomId}` },
-        (payload) => { setChat((prev) => [...prev, payload.new as ChatMsg]) },
+        (payload) => {
+          const newMsg = payload.new as ChatMsg
+          // Aynı mesajı tekrar ekleme (realtime + local insert çakışması)
+          setChat((prev) => prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg])
+        },
       )
       .subscribe()
 
@@ -481,13 +489,17 @@ export function OnlineLobby({
   const sendChat = async () => {
     const text = chatText.trim()
     if (!text || !activeRoomId || !myUserId) return
-    await supabase.from('room_chat').insert({
+    const { error } = await supabase.from('room_chat').insert({
       room_id: activeRoomId,
       user_id: myUserId,
       player_name: players.find((p) => p.user_id === myUserId)?.username ?? 'Oyuncu',
       text,
       message_type: 'hint',
     })
+    if (error) {
+      toast.error('Mesaj gönderilemedi: ' + error.message)
+      return
+    }
     setChatText('')
   }
 
