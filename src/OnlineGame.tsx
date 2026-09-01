@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   ArrowLeft, Send, Clock, Eye, EyeOff, Crown, Check,
   Loader2, AlertTriangle, Trophy, Skull, Sparkles,
-  MessageSquare, Settings as SettingsIcon,
+  MessageSquare, Settings as SettingsIcon, UserPlus,
 } from 'lucide-react'
 import { Button } from './components/common/Button'
 import { Avatar } from './components/common/Avatar'
@@ -13,6 +13,7 @@ import { profileApi, statsApi } from './lib/profileApi'
 import { applyGameResult } from './lib/scoreSystem'
 import { questsApi } from './lib/questsApi'
 import { achievementsApi } from './lib/achievementsApi'
+import { WORD_POOL } from './constants'
 import { pickWord, pickImpostor } from './utils/wordPool'
 import { countVotes, isGuessCorrect, isValidHint } from './utils/gameUtils'
 import { cn } from './utils/cn'
@@ -58,6 +59,7 @@ interface RoomData {
   winner: 'PLAYERS' | 'IMPOSTOR' | null
   voted_impostor_id: string | null
   impostor_guess: string | null
+  vote_requested?: boolean
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -78,10 +80,14 @@ export function OnlineGame({
   const [votes, setVotes] = useState<Record<string, string>>({})
   const [myUserId, setMyUserId] = useState<string | null>(null)
   const [hintText, setHintText] = useState('')
+  const botTurnRef = useRef<string | null>(null)
   const [guessText, setGuessText] = useState('')
   const [timeLeft, setTimeLeft] = useState(0)
   const [loading, setLoading] = useState(true)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const activeTimerKeyRef = useRef<string | null>(null)
+  const expiredTimerKeyRef = useRef<string | null>(null)
+  const startVoteLockRef = useRef(false)
 
   // ─── Auth user ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -227,6 +233,8 @@ export function OnlineGame({
   useEffect(() => {
     if (room?.state !== 'PLAYING') return
     if (timerRef.current) clearInterval(timerRef.current)
+    activeTimerKeyRef.current = timerKey
+    expiredTimerKeyRef.current = null
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -284,6 +292,7 @@ export function OnlineGame({
       winner: null,
       voted_impostor_id: null,
       impostor_guess: null,
+      vote_requested: false,
       settings: room.settings,
     }).eq('id', roomId)
 
@@ -354,8 +363,6 @@ export function OnlineGame({
     if (!room || players.length === 0) return
     const nextIndex = (room.turn_index + 1) % players.length
     const nextRound = nextIndex === 0 ? room.round + 1 : room.round
-    const roundsBeforeVoting = room.settings.roundsBeforeVoting ?? 2
-
     // Pas flag'lerini sıra başına sıfırla
     if (nextIndex === 0) {
       for (const p of players) {
@@ -363,37 +370,115 @@ export function OnlineGame({
       }
     }
 
-    if (nextRound > roundsBeforeVoting) {
-      // Oylamaya geç
-      await supabase.from('rooms').update({
-        state: 'VOTING',
-        turn_index: 0,
-      }).eq('id', roomId)
-      await supabase.from('room_chat').insert({
-        room_id: roomId,
-        user_id: myUserId,
-        player_name: 'Sistem',
-        text: 'Oylama başladı! Sahtekarı seçin.',
-        message_type: 'system',
-      })
-    } else {
-      await supabase.from('rooms').update({
-        turn_index: nextIndex,
-        round: nextRound,
-      }).eq('id', roomId)
-    }
+    // Tur sayısı dolsa bile oylamayı kendiliğinden açma. Host, Oylama
+    // sekmesinden teklif gönderir; oyuncular kabul ederse VOTING'e geçilir.
+    await supabase.from('rooms').update({
+      turn_index: nextIndex,
+      round: nextRound,
+    }).eq('id', roomId)
   }
+
+  // Süre dolunca host turu otomatik olarak ilerletir.
+  useEffect(() => {
+    if (!isHost || room?.state !== 'PLAYING' || timeLeft !== 0 || !activeTimerKeyRef.current || activeTimerKeyRef.current !== timerKey || expiredTimerKeyRef.current === timerKey) return
+    expiredTimerKeyRef.current = timerKey
+    void advanceTurn()
+  }, [isHost, room?.state, timeLeft, timerKey, advanceTurn])
+
+  // Online lobide eklenen botlar host tarafından otomatik oynatılır.
+  useEffect(() => {
+    if (!isHost || !myUserId || room?.state !== 'PLAYING' || !currentTurnPlayer?.is_bot) return
+    const botKey = `${room.id}:${room.round}:${room.turn_index}`
+    if (botTurnRef.current === botKey) return
+    botTurnRef.current = botKey
+    const bot = currentTurnPlayer
+    const word = room.current_word ?? ''
+    const category = room.current_category ?? 'bu kategori'
+    const entry = WORD_POOL.find((item) => item.word.toLocaleLowerCase('tr-TR') === word.toLocaleLowerCase('tr-TR'))
+    const usedHints = new Set(chat.filter((message) => message.message_type === 'hint').map((message) => message.text.toLocaleLowerCase('tr-TR')))
+    const broadHints = [
+      `${category} içinde karşına çıkabilir`,
+      `Günlük hayatta sıkça görülür`,
+      `${word.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').length || 5} harfli bir kelime`,
+      'Bununla ilgili bir deneyimin olabilir',
+    ]
+    const preciseHints = [
+      entry?.hint ?? `${category} ile ilgili belirgin bir şey`,
+      `${category} deyince akla gelenlerden biri`,
+      'İşlevini veya nerede kullanıldığını düşün',
+      `${word.length} karakterli, tanıdık bir kelime`,
+    ]
+    const hints = bot.bot_difficulty === 'EXPERT' ? preciseHints : bot.bot_difficulty === 'EASY' ? broadHints : [...preciseHints.slice(0, 2), ...broadHints.slice(0, 2)]
+    const availableHints = hints.filter((candidate) => !usedHints.has(candidate.toLocaleLowerCase('tr-TR')))
+    const pool = availableHints.length > 0 ? availableHints : hints
+    const hint = pool[(room.round + room.turn_index + bot.username.length) % pool.length]!
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const { error } = await supabase.from('room_chat').insert({ room_id: roomId, user_id: myUserId, player_name: bot.username, text: hint, message_type: 'hint' })
+        if (error) {
+          toast.error(`Bot ipucu gönderemedi: ${error.message}`)
+          // Veritabanı yazımı başarısız olsa bile bot turu kilitlemesin.
+          await advanceTurn()
+          return
+        }
+        await advanceTurn()
+      })()
+    }, 900)
+    return () => window.clearTimeout(timer)
+    // advanceTurn/toast her render'da yeni referans ürettiği için timer'ı
+    // gereksiz yere iptal etmemeli; botKey aynı turu zaten koruyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, myUserId, room?.state, room?.id, room?.round, room?.turn_index, room?.current_category, room?.current_word, currentTurnPlayer?.user_id, currentTurnPlayer?.is_bot, currentTurnPlayer?.bot_difficulty, roomId, chat])
 
   // ─── Vote ───────────────────────────────────────────────────────────────
   const vote = async (targetId: string) => {
     if (!myUserId || myVote) return
-    const { error } = await supabase.from('room_votes').upsert({
+    const { error } = await supabase.from('room_votes').insert({
       room_id: roomId,
       voter_id: myUserId,
       target_id: targetId,
     })
-    if (error) toast.error('Oyunuz kaydedilemedi. Tekrar dene.')
+    if (error) toast.error(error.code === '23505' ? 'Zaten oy verdin.' : `Oyunuz kaydedilemedi: ${error.message}`)
   }
+
+  // Oylamaya geçiş kararı: herkes bir kez Evet/Hayır verir.
+  const castStartVote = async (choice: 'yes' | 'no') => {
+    if (!myUserId || !room?.vote_requested || votes[myUserId]) return
+    const { error } = await supabase.from('room_votes').insert({
+      room_id: roomId,
+      voter_id: myUserId,
+      target_id: choice === 'yes' ? '__START_YES__' : '__START_NO__',
+    })
+    if (error) toast.error(error.code === '23505' ? 'Kararını zaten verdin.' : `Kararın kaydedilemedi: ${error.message}`)
+  }
+
+  const requestVoteStart = async () => {
+    if (!isHost || !room || room.vote_requested) return
+    const { error } = await supabase.from('rooms').update({ vote_requested: true }).eq('id', roomId).eq('state', 'PLAYING')
+    if (error) toast.error('Oylama teklifi gönderilemedi. Tekrar dene.')
+    else toast.success('Oylama teklifi gönderildi.')
+  }
+
+  // Host, tüm oyuncular karar verdikten sonra çoğunluğa göre PLAYING → VOTING geçişini yapar.
+  useEffect(() => {
+    if (!isHost || room?.state !== 'PLAYING' || !room.vote_requested || players.length === 0) return
+    const decided = players.every((p) => votes[p.user_id] === '__START_YES__' || votes[p.user_id] === '__START_NO__')
+    if (!decided || startVoteLockRef.current) return
+    startVoteLockRef.current = true
+    const yes = players.filter((p) => votes[p.user_id] === '__START_YES__').length
+    const nextState = yes > players.length / 2 ? 'VOTING' : 'PLAYING'
+    void (async () => {
+      const { error } = await supabase.from('room_votes').delete().eq('room_id', roomId)
+      if (error) {
+        toast.error('Başlangıç oylaması temizlenemedi.')
+        startVoteLockRef.current = false
+        return
+      }
+      const { error: roomError } = await supabase.from('rooms').update({ state: nextState, turn_index: 0, vote_requested: false }).eq('id', roomId).eq('state', 'PLAYING')
+      if (roomError) toast.error('Oylama başlatılamadı. Tekrar dene.')
+      if (nextState === 'PLAYING') startVoteLockRef.current = false
+    })()
+  }, [isHost, room?.state, players, votes, roomId, toast])
 
   // ─── Host: Finish voting ────────────────────────────────────────────────
   const finishVoting = async () => {
@@ -416,6 +501,35 @@ export function OnlineGame({
       message_type: 'system',
     })
   }
+
+  // Botlar oylamada ipuçlarını karşılaştırıp en şüpheli oyuncuya oy verir.
+  useEffect(() => {
+    if (!isHost || room?.state !== 'VOTING' || players.length === 0) return
+    const pending = players.filter((p) => p.is_bot && !votes[p.user_id])
+    if (pending.length === 0) return
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const bot of pending) {
+          const candidates = players.filter((p) => p.user_id !== bot.user_id)
+          const scores = candidates.map((candidate) => {
+            const hint = chat.find((m) => m.user_id === candidate.user_id && m.message_type === 'hint')?.text ?? ''
+            const suspicion = (hint.length <= 4 ? 3 : 0) + (hint.includes('şey') || hint.includes('bir şey') ? 2 : 0)
+            return { id: candidate.user_id, suspicion }
+          }).sort((a, b) => b.suspicion - a.suspicion)
+          const target = scores[0]?.id
+          if (target) {
+            const { error } = await supabase.from('room_votes').insert({ room_id: roomId, voter_id: bot.user_id, target_id: target })
+            if (error) toast.error(`Bot oyu kaydedilemedi: ${error.message}`)
+          }
+        }
+      })()
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [isHost, room?.state, roomId, players, votes, chat])
+
+  useEffect(() => {
+    if (isHost && room?.state === 'VOTING' && allVoted) void finishVoting()
+  }, [isHost, room?.state, allVoted, finishVoting])
 
   // ─── Impostor: Guess word ───────────────────────────────────────────────
   const submitGuess = async () => {
@@ -594,7 +708,6 @@ export function OnlineGame({
         votes={votes}
         myUserId={myUserId}
         isImpostor={isImpostor}
-        isHost={isHost}
         currentTurnPlayer={currentTurnPlayer}
         isMyTurn={isMyTurn}
         hintText={hintText}
@@ -602,6 +715,9 @@ export function OnlineGame({
         sendHint={sendHint}
         passTurn={passTurn}
         timeLeft={timeLeft}
+        startVotes={votes}
+        castStartVote={castStartVote}
+        requestVoteStart={requestVoteStart}
         roomId={roomId}
         onLeave={leaveRoom}
       />
@@ -784,11 +900,15 @@ function RoleCard({ isImpostor, word, category }: { isImpostor: boolean; word: s
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'rounded-2xl p-5 ring-1',
+        'relative flex h-full min-h-[30rem] w-full max-w-sm flex-col justify-start overflow-hidden rounded-2xl p-6 pt-8 ring-1 shadow-xl',
         isImpostor ? 'bg-rose-500/10 ring-rose-500/30' : 'bg-emerald-500/10 ring-emerald-500/30',
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-35" style={{ backgroundImage: "url('/role-duel.png')", backgroundPosition: isImpostor ? 'left top' : 'right top', backgroundSize: '200% auto' }} aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-slate-950/80 via-slate-950/55 to-slate-950/75" aria-hidden="true" />
+      <div className="relative z-10">
+      <div className="mb-4 flex items-center justify-between"><span className={cn('rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider', isImpostor ? 'bg-rose-500/25 text-rose-200' : 'bg-emerald-500/25 text-emerald-200')}>{isImpostor ? 'Gizli rol' : 'Takım rolü'}</span><span className="text-xs text-slate-300">Rolüm</span></div>
+      <div className="flex items-start gap-3">
         {isImpostor ? (
           <EyeOff className="h-6 w-6 text-rose-400" />
         ) : (
@@ -799,14 +919,15 @@ function RoleCard({ isImpostor, word, category }: { isImpostor: boolean; word: s
             {isImpostor ? 'Sen sahtekarsın!' : 'Sen vatandaşsın!'}
           </p>
           {isImpostor ? (
-            <p className="mt-1 text-xs text-slate-400">Kelimeyi bilmiyorsun — ipuçlarından tahmin et, yakalanma!</p>
+            <><p className="mt-1 text-xs leading-5 text-slate-400">Kelimeyi bilmiyorsun. İpuçlarını takip et, doğal görün ve yakalanma.</p><div className="mt-3 rounded-xl bg-slate-950/40 px-3 py-2 text-xs text-rose-200">Kazanma hedefi: Oylamadan kaç veya kelimeyi doğru tahmin et.</div></>
           ) : (
             <>
               <p className="mt-1 text-lg font-bold text-cyan-300">{word}</p>
-              <p className="text-xs text-slate-500">{category}</p>
+              <p className="text-xs text-slate-500">Kategori: {category}</p><div className="mt-3 rounded-xl bg-slate-950/40 px-3 py-2 text-xs text-emerald-200">Kazanma hedefi: Sahtekârı bul ve oyla.</div>
             </>
           )}
         </div>
+      </div>
       </div>
     </motion.div>
   )
@@ -851,7 +972,7 @@ function RevealPhase({
     const promoteRoom = async () => {
       const { data, error } = await supabase
         .from('rooms')
-        .update({ state: 'PLAYING' })
+        .update({ state: 'PLAYING', vote_requested: false })
         .eq('id', roomId)
         .eq('state', 'REVEAL')
         .select('state')
@@ -899,7 +1020,7 @@ function RevealPhase({
         .eq('room_id', roomId)
       const everyoneReady = (readyPlayers ?? []).length > 0 && (readyPlayers ?? []).every((player) => player.is_bot || player.is_ready)
       if (everyoneReady) {
-        const { error } = await supabase.from('rooms').update({ state: 'PLAYING' }).eq('id', roomId)
+        const { error } = await supabase.from('rooms').update({ state: 'PLAYING', vote_requested: false }).eq('id', roomId)
         if (error) toast.error('Oyun başlatılamadı. Host tekrar denesin.')
       }
     }
@@ -1053,7 +1174,6 @@ function PlayingPhase({
   votes,
   myUserId,
   isImpostor,
-  isHost,
   currentTurnPlayer,
   isMyTurn,
   hintText,
@@ -1061,6 +1181,9 @@ function PlayingPhase({
   sendHint,
   passTurn,
   timeLeft,
+  startVotes,
+  castStartVote,
+  requestVoteStart,
   roomId,
   onLeave,
 }: {
@@ -1070,7 +1193,6 @@ function PlayingPhase({
   votes: Record<string, string>
   myUserId: string
   isImpostor: boolean
-  isHost: boolean
   currentTurnPlayer: RoomPlayer | undefined
   isMyTurn: boolean
   hintText: string
@@ -1078,11 +1200,16 @@ function PlayingPhase({
   sendHint: () => void
   passTurn: () => void
   timeLeft: number
+  startVotes: Record<string, string>
+  castStartVote: (choice: 'yes' | 'no') => void
+  requestVoteStart: () => void
   roomId: string
   onLeave: () => void
 }) {
+  const toast = useToast()
   const [tab, setTab] = useState<PlayTab>('hints')
   const [chatText, setChatText] = useState('')
+  const [friendRequests, setFriendRequests] = useState<Set<string>>(new Set())
   const hintsScrollRef = useRef<HTMLDivElement>(null)
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
@@ -1111,6 +1238,13 @@ function PlayingPhase({
       message_type: 'chat',
     })
     setChatText('')
+  }
+
+  const addFriend = async (player: RoomPlayer) => {
+    if (player.is_bot || player.user_id === myUserId || friendRequests.has(player.user_id)) return
+    const { error } = await supabase.from('friends').insert({ user_id: myUserId, friend_id: player.user_id, status: 'pending' })
+    if (error) toast.error(error.code === '23505' ? 'Arkadaşlık isteği zaten gönderildi' : 'Arkadaşlık isteği gönderilemedi')
+    else { setFriendRequests((current) => new Set(current).add(player.user_id)); toast.success(`${player.username} arkadaşlık isteği gönderildi`) }
   }
 
   const tabs: { id: PlayTab; label: string; icon: typeof Send }[] = [
@@ -1241,44 +1375,52 @@ function PlayingPhase({
 
           {/* ─── Rolüm sekmesi ──────────────────────────────────────── */}
           {tab === 'role' && (
-            <div className="flex h-full flex-col items-center justify-center px-6 py-8">
+            <div className="flex h-full flex-col items-center justify-start px-3 py-3">
               <RoleCard isImpostor={isImpostor} word={room.current_word ?? ''} category={room.current_category ?? ''} />
-              <div className="mt-4 w-full max-w-sm space-y-2">
-                <div className="rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
-                  <p className="text-xs text-slate-400">Oyuncular:</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {players.map((p) => (
-                      <span key={p.user_id} className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                        {p.username}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
           {/* ─── Oylama sekmesi ──────────────────────────────────────── */}
           {tab === 'vote' && (
             <div className="flex h-full flex-col px-4 py-3 overflow-y-auto">
-              <p className="mb-3 text-center text-sm text-slate-400">
-                {isHost ? 'Oylamayı başlatabilirsin' : 'Host oylamayı başlatabilir'}
-              </p>
-              {isHost && (
-                <Button
-                  variant="danger"
-                  fullWidth
-                  onClick={() => {
-                    void supabase.from('rooms').update({ state: 'VOTING' }).eq('id', roomId)
-                  }}
-                >
-                  <AlertTriangle className="h-4 w-4" /> Oylamaya Geç
-                </Button>
-              )}
+              <div className="rounded-2xl bg-slate-900 p-4 ring-1 ring-indigo-500/30">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-300" />
+                  <p className="font-semibold text-slate-100">Oylamaya geçilsin mi?</p>
+                </div>
+                {!room.vote_requested ? (
+                  <>
+                    <p className="mt-1 text-xs text-slate-400">Oylama kendiliğinden başlamaz. Host teklif gönderdiğinde herkes karar verir.</p>
+                    {room.host_id === myUserId ? (
+                      <Button variant="danger" fullWidth className="mt-3" onClick={requestVoteStart}>
+                        <AlertTriangle className="h-4 w-4" /> Oylama Teklifi Gönder
+                      </Button>
+                    ) : (
+                      <p className="mt-3 text-center text-xs text-slate-500">Host oylama teklifini göndermeyi bekliyor...</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-xs text-slate-400">Tüm oyuncular karar verdikten sonra çoğunluk sonucu uygulanır.</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button variant="success" disabled={!!startVotes[myUserId]} onClick={() => castStartVote('yes')}>
+                        <Check className="h-4 w-4" /> Evet
+                      </Button>
+                      <Button variant="secondary" disabled={!!startVotes[myUserId]} onClick={() => castStartVote('no')}>
+                        Hayır
+                      </Button>
+                    </div>
+                    <p className="mt-3 text-center text-xs text-slate-500">
+                      {players.filter((p) => startVotes[p.user_id]).length}/{players.length} karar verdi
+                      {startVotes[myUserId] && ` · ${startVotes[myUserId] === '__START_YES__' ? 'Evet dedin' : 'Hayır dedin'}`}
+                    </p>
+                  </>
+                )}
+              </div>
               <div className="mt-4 space-y-2">
-                <p className="text-xs text-slate-500">Şu anaki oylar:</p>
+                <p className="text-xs text-slate-500">Mevcut ipuçları:</p>
                 {Object.keys(votes).length === 0 ? (
-                  <p className="text-xs text-slate-600">Henüz oy yok</p>
+                  <p className="text-xs text-slate-600">Henüz ipucu oyu yok</p>
                 ) : (
                   Object.entries(votes).map(([voter, target]) => (
                     <div key={voter} className="rounded-lg bg-slate-800 px-3 py-2 text-xs">
@@ -1316,6 +1458,7 @@ function PlayingPhase({
                         <Avatar avatarId={p.avatar} size="sm" hideFrame />
                         <span className="text-xs text-slate-300">{p.username}</span>
                         {p.user_id === room.host_id && <Crown className="h-3 w-3 text-amber-400" />}
+                        {!p.is_bot && p.user_id !== myUserId && <button type="button" onClick={() => void addFriend(p)} className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-lg bg-cyan-500/10 px-2 text-[10px] text-cyan-300 hover:bg-cyan-500/20" disabled={friendRequests.has(p.user_id)}><UserPlus className="h-3 w-3" />{friendRequests.has(p.user_id) ? 'Gönderildi' : 'Ekle'}</button>}
                       </div>
                     ))}
                   </div>
@@ -1330,7 +1473,7 @@ function PlayingPhase({
       </div>
 
       {/* ─── Alt bar (sabit) ─────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-slate-800 bg-slate-900/95 px-2 py-1.5">
+      <div className="shrink-0 border-t border-indigo-400/15 bg-slate-900 px-2 py-2 shadow-[0_-8px_24px_rgba(2,6,23,0.35)]">
         <div className="mx-auto flex w-full max-w-md items-center justify-around">
           {tabs.map((t) => {
             const Icon = t.icon
@@ -1340,10 +1483,11 @@ function PlayingPhase({
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors',
-                  tab === t.id ? 'text-indigo-300' : 'text-slate-500 hover:text-slate-300',
+                  'relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors',
+                  tab === t.id ? 'bg-indigo-500/15 text-indigo-200' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300',
                 )}
               >
+                {tab === t.id && <span className="absolute -top-2 h-1 w-8 rounded-full bg-linear-to-r from-cyan-400 to-indigo-400" />}
                 <Icon className="h-4 w-4" />
                 {t.label}
               </button>

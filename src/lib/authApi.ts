@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+import { supabase, isSupabaseConfigured } from './supabase'
+import { storage } from './storage'
 import type { User } from '@supabase/supabase-js'
 
 /**
@@ -18,6 +19,10 @@ export interface AuthRecord {
   username: string
   playerId: string
 }
+type LocalAuth = AuthRecord & { password: string }
+const LOCAL_USERS = 'sahtekar:local-users'
+const LOCAL_SESSION = 'sahtekar:local-session'
+const localUsers = () => storage.get<LocalAuth[]>(LOCAL_USERS, [])
 
 function usernameToEmail(username: string): string {
   return `${username.toLocaleLowerCase('tr-TR').trim()}@sahtekar.game`
@@ -34,6 +39,7 @@ function userToRecord(user: User): AuthRecord {
 export const authApi = {
   /** Mevcut session'ı async döndürür. */
   async currentAsync(): Promise<AuthRecord | null> {
+    if (!isSupabaseConfigured) return storage.get<AuthRecord | null>(LOCAL_SESSION, null)
     const { data, error } = await supabase.auth.getSession()
     if (error || !data.session) return null
     return userToRecord(data.session.user)
@@ -41,6 +47,11 @@ export const authApi = {
 
   /** Giriş yap. */
   async login(username: string, password: string): Promise<{ ok: boolean; error?: string }> {
+    if (!isSupabaseConfigured) {
+      const user = localUsers().find((u) => u.username.toLocaleLowerCase('tr-TR') === username.toLocaleLowerCase('tr-TR') && u.password === password)
+      if (!user) return { ok: false, error: 'Kullanıcı adı veya şifre hatalı' }
+      storage.set(LOCAL_SESSION, user); return { ok: true }
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email: usernameToEmail(username),
       password,
@@ -57,6 +68,12 @@ export const authApi = {
     password: string,
     _playerId: string,
   ): Promise<{ ok: boolean; error?: string }> {
+    if (!isSupabaseConfigured) {
+      const all = localUsers()
+      if (all.some((u) => u.username.toLocaleLowerCase('tr-TR') === username.toLocaleLowerCase('tr-TR'))) return { ok: false, error: 'Bu kullanıcı adı zaten kayıtlı' }
+      const user: LocalAuth = { id: `local-${Date.now()}`, username, playerId: _playerId, password }
+      storage.set(LOCAL_USERS, [...all, user]); storage.set(LOCAL_SESSION, user); return { ok: true }
+    }
     const { data, error } = await supabase.auth.signUp({
       email: usernameToEmail(username),
       password,

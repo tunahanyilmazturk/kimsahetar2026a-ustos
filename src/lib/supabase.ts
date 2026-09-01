@@ -10,7 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
+// Ortam değişkenleri yokken de offline ekranlar ve testler çalışabilsin.
+// Gerçek bağlantı yalnızca VITE_SUPABASE_* değerleri verildiğinde aktiftir.
+export const supabase = createClient(
+  supabaseUrl ?? 'http://127.0.0.1:54321',
+  supabaseAnonKey ?? 'offline-local-anon-key',
+  {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -19,7 +24,8 @@ export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
   realtime: {
     params: { eventsPerSecond: 10 },
   },
-})
+  },
+)
 
 /** Supabase bağlantısı aktif mi? */
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)

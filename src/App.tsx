@@ -75,7 +75,7 @@ function AppInner() {
   }, [])
 
   if (authLoading) return <LoadingScreen />
-  if (!authUser) return <AuthScreen onSuccess={() => { /* onAuthChange handle eder */ }} />
+  if (!authUser) return <AuthScreen onSuccess={() => { void authApi.currentAsync().then(setAuthUser) }} />
   if (!introSeen) return <WelcomeIntro onDone={() => setIntroSeen(true)} />
 
   if (screen === 'game') {

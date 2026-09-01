@@ -113,6 +113,7 @@ create table if not exists public.rooms (
   impostor_id text,              -- text: gerçek user UUID veya bot ID
   voted_impostor_id text,        -- oyuncuların oyladığı sahtekar ID (text)
   impostor_guess text,           -- sahtekarın kelime tahmini
+  vote_requested boolean not null default false,
   turn_index integer not null default 0,
   round integer not null default 1,
   winner text,
@@ -126,6 +127,7 @@ alter table public.rooms add column if not exists current_category text;
 alter table public.rooms add column if not exists impostor_id text;  -- text: UUID veya bot ID
 alter table public.rooms add column if not exists voted_impostor_id text;  -- text: UUID veya bot ID
 alter table public.rooms add column if not exists impostor_guess text;
+alter table public.rooms add column if not exists vote_requested boolean not null default false;
 alter table public.rooms add column if not exists turn_index integer not null default 0;
 alter table public.rooms add column if not exists round integer not null default 1;
 alter table public.rooms add column if not exists winner text;
@@ -543,6 +545,11 @@ drop policy if exists "room_votes_delete_own" on public.room_votes;
 create policy "room_votes_select" on public.room_votes for select using (true);
 create policy "room_votes_insert_own" on public.room_votes for insert with check (auth.uid()::text = voter_id);
 create policy "room_votes_delete_own" on public.room_votes for delete using (auth.uid()::text = voter_id);
+drop policy if exists "room_votes_delete_own_or_host" on public.room_votes;
+create policy "room_votes_delete_own_or_host" on public.room_votes for delete using (
+  auth.uid()::text = voter_id
+  or exists (select 1 from public.rooms r where r.id = room_votes.room_id and r.host_id = auth.uid())
+);
 
 -- ─── ROOM INVITES: davet eden ve davet edilen okuyup güncelleyebilir
 alter table public.room_invites enable row level security;
