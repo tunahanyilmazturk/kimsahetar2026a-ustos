@@ -110,8 +110,8 @@ create table if not exists public.rooms (
   settings jsonb not null default '{}',
   current_word text,
   current_category text,
-  impostor_id uuid,
-  voted_impostor_id uuid,       -- oyuncuların oyladığı sahtekar ID
+  impostor_id text,              -- text: gerçek user UUID veya bot ID
+  voted_impostor_id text,        -- oyuncuların oyladığı sahtekar ID (text)
   impostor_guess text,           -- sahtekarın kelime tahmini
   turn_index integer not null default 0,
   round integer not null default 1,
@@ -123,13 +123,32 @@ create table if not exists public.rooms (
 -- Eski veritabanlarına eksik sütunları ekle
 alter table public.rooms add column if not exists current_word text;
 alter table public.rooms add column if not exists current_category text;
-alter table public.rooms add column if not exists impostor_id uuid;
-alter table public.rooms add column if not exists voted_impostor_id uuid;
+alter table public.rooms add column if not exists impostor_id text;  -- text: UUID veya bot ID
+alter table public.rooms add column if not exists voted_impostor_id text;  -- text: UUID veya bot ID
 alter table public.rooms add column if not exists impostor_guess text;
 alter table public.rooms add column if not exists turn_index integer not null default 0;
 alter table public.rooms add column if not exists round integer not null default 1;
 alter table public.rooms add column if not exists winner text;
 alter table public.rooms add column if not exists updated_at timestamptz not null default now();
+
+-- Eski veritabanında impostor_id UUID ise text'e çevir (bot ID'leri için)
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'rooms' and column_name = 'impostor_id'
+      and data_type = 'uuid'
+  ) then
+    alter table public.rooms alter column impostor_id type text;
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'rooms' and column_name = 'voted_impostor_id'
+      and data_type = 'uuid'
+  ) then
+    alter table public.rooms alter column voted_impostor_id type text;
+  end if;
+end $$;
 
 -- ─── 9. ROOM PLAYERS ────────────────────────────────────────────────────────
 
@@ -219,11 +238,24 @@ alter table public.room_chat add column if not exists message_type text not null
 
 create table if not exists public.room_votes (
   room_id uuid not null references public.rooms(id) on delete cascade,
-  voter_id uuid not null references auth.users(id) on delete cascade,
-  target_id uuid not null references auth.users(id) on delete cascade,
+  voter_id text not null,  -- text: gerçek user UUID veya bot ID
+  target_id text not null,  -- text: gerçek user UUID veya bot ID
   created_at timestamptz not null default now(),
   primary key (room_id, voter_id)
 );
+
+-- Eski veritabanında UUID tipindeyse text'e çevir
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'room_votes' and column_name = 'voter_id'
+      and data_type = 'uuid'
+  ) then
+    alter table public.room_votes alter column voter_id type text;
+    alter table public.room_votes alter column target_id type text;
+  end if;
+end $$;
 
 -- ─── 12. ROOM INVITES (oda davet sistemi) ───────────────────────────────────
 

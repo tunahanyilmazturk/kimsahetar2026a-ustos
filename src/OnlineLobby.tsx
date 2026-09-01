@@ -591,13 +591,20 @@ export function OnlineLobby({
     })
     const impostorId = pickImpostor(allIds)
 
-    // Seat numaralarını ata
+    // Seat numaralarını ata — botlar için bot_name, gerçek oyuncular için user_id
     for (let i = 0; i < players.length; i++) {
       const p = players[i]
-      await supabase.from('room_players')
-        .update({ seat: i, passed: false, is_ready: false })
-        .eq('room_id', activeRoomId)
-        .eq('user_id', p.user_id)
+      if (p.is_bot) {
+        await supabase.from('room_players')
+          .update({ seat: i, passed: false, is_ready: false })
+          .eq('room_id', activeRoomId)
+          .eq('bot_name', p.username)
+      } else {
+        await supabase.from('room_players')
+          .update({ seat: i, passed: false, is_ready: false })
+          .eq('room_id', activeRoomId)
+          .eq('user_id', p.user_id)
+      }
     }
 
     // Odayı REVEAL state'ine geçir — kelime + sahtekar ayarla
