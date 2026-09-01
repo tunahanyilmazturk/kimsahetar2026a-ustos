@@ -300,13 +300,31 @@ export function OnlineLobby({
         return
       }
 
-      const { error: joinError } = await supabase
+      // Host olarak odaya katıl (önce kontrol et, sonra insert/update)
+      const { data: existingHost } = await supabase
         .from('room_players')
-        .insert({
-          room_id: room.id,
-          user_id: user.id,
-          is_ready: true,
-        })
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      let joinError: { message: string } | null = null
+      if (existingHost) {
+        const { error } = await supabase
+          .from('room_players')
+          .update({ is_ready: true, is_bot: false })
+          .eq('id', existingHost.id)
+        joinError = error
+      } else {
+        const { error } = await supabase
+          .from('room_players')
+          .insert({
+            room_id: room.id,
+            user_id: user.id,
+            is_ready: true,
+          })
+        joinError = error
+      }
 
       if (joinError) {
         toast.error('Odaya katılım kaydedilemedi: ' + joinError.message)
@@ -351,13 +369,33 @@ export function OnlineLobby({
         return
       }
 
-      const { error: joinError } = await supabase
+      // Önce oyuncu zaten odada mı kontrol et
+      const { data: existing } = await supabase
         .from('room_players')
-        .upsert({
-          room_id: room.id,
-          user_id: user.id,
-          is_ready: false,
-        })
+        .select('id')
+        .eq('room_id', room.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      let joinError: { message: string } | null = null
+      if (existing) {
+        // Zaten odada — hazır durumunu güncelle
+        const { error } = await supabase
+          .from('room_players')
+          .update({ is_ready: false })
+          .eq('id', existing.id)
+        joinError = error
+      } else {
+        // Yeni katılım
+        const { error } = await supabase
+          .from('room_players')
+          .insert({
+            room_id: room.id,
+            user_id: user.id,
+            is_ready: false,
+          })
+        joinError = error
+      }
 
       if (joinError) {
         toast.error('Odaya katılınamadı: ' + joinError.message)
