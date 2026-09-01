@@ -4,7 +4,10 @@ import { useToast } from './components/common/toast-context'
 import { MainMenuPanel } from './components/menu/MainMenuPanel'
 import { OnlineLobby } from './OnlineLobby'
 import { AuthScreen } from './components/auth/AuthScreen'
-import { authApi } from './lib/authApi'
+import { authApi, type AuthRecord } from './lib/authApi'
+import { profileApi } from './lib/profileApi'
+import { achievementsApi } from './lib/achievementsApi'
+import { questsApi } from './lib/questsApi'
 import { useSettings } from './hooks/useSettings'
 import { WelcomeIntro } from './components/auth/WelcomeIntro'
 
@@ -17,11 +20,47 @@ type Screen = 'menu' | 'game' | 'online'
 
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('menu')
-  const [authenticated, setAuthenticated] = useState(() => Boolean(authApi.current()))
+  const [authUser, setAuthUser] = useState<AuthRecord | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [introSeen, setIntroSeen] = useState(() => localStorage.getItem('sahtekar:intro-seen') === '1')
   const { settings } = useSettings()
 
-  if (!authenticated) return <AuthScreen onSuccess={() => setAuthenticated(true)} />
+  // İlk yüklemede session'ı kontrol et + auth state değişimini dinle
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+    let lastUserId: string | null = null
+    ;(async () => {
+      const current = await authApi.currentAsync()
+      setAuthUser(current)
+      setAuthLoading(false)
+      if (current && current.id !== lastUserId) {
+        lastUserId = current.id
+        // Login sonrası Supabase'den yerel cache'i senkronize et
+        await Promise.all([
+          profileApi.syncFromSupabase(),
+          achievementsApi.syncFromSupabase(),
+          questsApi.syncDailyFromSupabase(),
+          questsApi.syncWeeklyFromSupabase(),
+        ])
+      }
+      unsubscribe = authApi.onAuthChange((record) => {
+        setAuthUser(record)
+        if (record && record.id !== lastUserId) {
+          lastUserId = record.id
+          void Promise.all([
+            profileApi.syncFromSupabase(),
+            achievementsApi.syncFromSupabase(),
+            questsApi.syncDailyFromSupabase(),
+            questsApi.syncWeeklyFromSupabase(),
+          ])
+        }
+      })
+    })()
+    return () => unsubscribe?.()
+  }, [])
+
+  if (authLoading) return <LoadingScreen />
+  if (!authUser) return <AuthScreen onSuccess={() => { /* onAuthChange handle eder */ }} />
   if (!introSeen) return <WelcomeIntro onDone={() => setIntroSeen(true)} />
 
   if (screen === 'game') {

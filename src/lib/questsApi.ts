@@ -1,4 +1,5 @@
 import { storage, STORAGE_KEYS } from './storage'
+import { supabase } from './supabase'
 import { DAILY_QUEST_MAP, DAILY_QUESTS, WEEKLY_QUEST_MAP, WEEKLY_QUESTS } from '../config/dailyQuests'
 import type { QuestState, QuestProgress, DailyQuest } from '../types'
 
@@ -47,6 +48,7 @@ export const questsApi = {
       state.quests[q.id] = { progress, completed: completed || cur.completed, claimed: cur.claimed }
     }
     storage.set(STORAGE_KEYS.QUESTS, state)
+    void this.syncDailyToSupabase(state)
     return state
   },
 
@@ -61,6 +63,7 @@ export const questsApi = {
 
     state.quests[questId] = { ...prog, claimed: true }
     storage.set(STORAGE_KEYS.QUESTS, state)
+    void this.syncDailyToSupabase(state)
     return { ok: true, reward: { coins: quest.rewardCoins, xp: quest.rewardXp } }
   },
 
@@ -79,7 +82,10 @@ export const questsApi = {
         claimed.push(q.id)
       }
     }
-    if (claimed.length > 0) storage.set(STORAGE_KEYS.QUESTS, state)
+    if (claimed.length > 0) {
+      storage.set(STORAGE_KEYS.QUESTS, state)
+      void this.syncDailyToSupabase(state)
+    }
     return { coins, xp, claimed }
   },
 
@@ -92,8 +98,94 @@ export const questsApi = {
     return state
   },
   addWeeklyProgress(metric: DailyQuest['metric'], amount = 1): QuestState {
-    const state = this.getWeekly(); for (const q of WEEKLY_QUESTS) { if (q.metric !== metric) continue; const cur = state.quests[q.id]!; const progress = Math.min(q.goal, cur.progress + amount); state.quests[q.id] = { ...cur, progress, completed: progress >= q.goal || cur.completed } } storage.set(STORAGE_KEYS.WEEKLY_QUESTS, state); return state
+    const state = this.getWeekly(); for (const q of WEEKLY_QUESTS) { if (q.metric !== metric) continue; const cur = state.quests[q.id]!; const progress = Math.min(q.goal, cur.progress + amount); state.quests[q.id] = { ...cur, progress, completed: progress >= q.goal || cur.completed } } storage.set(STORAGE_KEYS.WEEKLY_QUESTS, state); void this.syncWeeklyToSupabase(state); return state
   },
-  claimWeekly(id: string): { ok: boolean; reward?: { coins: number; xp: number }; reason?: string } { const state = this.getWeekly(); const q = WEEKLY_QUEST_MAP[id]; const p = state.quests[id]; if (!q || !p) return { ok: false, reason: 'Görev bulunamadı' }; if (!p.completed || p.claimed) return { ok: false, reason: p.claimed ? 'Ödül zaten alındı' : 'Görev tamamlanmadı' }; state.quests[id] = { ...p, claimed: true }; storage.set(STORAGE_KEYS.WEEKLY_QUESTS, state); return { ok: true, reward: { coins: q.rewardCoins, xp: q.rewardXp } }
+  claimWeekly(id: string): { ok: boolean; reward?: { coins: number; xp: number }; reason?: string } { const state = this.getWeekly(); const q = WEEKLY_QUEST_MAP[id]; const p = state.quests[id]; if (!q || !p) return { ok: false, reason: 'Görev bulunamadı' }; if (!p.completed || p.claimed) return { ok: false, reason: p.claimed ? 'Ödül zaten alındı' : 'Görev tamamlanmadı' }; state.quests[id] = { ...p, claimed: true }; storage.set(STORAGE_KEYS.WEEKLY_QUESTS, state); void this.syncWeeklyToSupabase(state); return { ok: true, reward: { coins: q.rewardCoins, xp: q.rewardXp } }
+  },
+
+  /** Supabase'den günlük görevleri çek (login sonrası). */
+  async syncDailyFromSupabase(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const date = today()
+    const { data } = await supabase
+      .from('daily_quests')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', date)
+
+    if (!data || data.length === 0) return
+
+    const quests: Record<string, QuestProgress> = emptyProgress()
+    for (const row of data) {
+      quests[row.quest_id] = {
+        progress: row.progress,
+        completed: row.completed,
+        claimed: row.claimed,
+      }
+    }
+    storage.set(STORAGE_KEYS.QUESTS, { date, quests })
+  },
+
+  /** Günlük görev değişikliğini Supabase'e yaz. */
+  async syncDailyToSupabase(state: QuestState): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const rows = Object.entries(state.quests).map(([questId, prog]) => ({
+      user_id: user.id,
+      quest_id: questId,
+      date: state.date,
+      progress: prog.progress,
+      completed: prog.completed,
+      claimed: prog.claimed,
+    }))
+
+    await supabase.from('daily_quests').upsert(rows, { onConflict: 'user_id,quest_id,date' })
+  },
+
+  /** Supabase'den haftalık görevleri çek (login sonrası). */
+  async syncWeeklyFromSupabase(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const week = weekKey()
+    const { data } = await supabase
+      .from('weekly_quests')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('week_key', week)
+
+    if (!data || data.length === 0) return
+
+    const quests: Record<string, QuestProgress> = Object.fromEntries(
+      WEEKLY_QUESTS.map((q) => [q.id, { progress: 0, completed: false, claimed: false }]),
+    )
+    for (const row of data) {
+      quests[row.quest_id] = {
+        progress: row.progress,
+        completed: row.completed,
+        claimed: row.claimed,
+      }
+    }
+    storage.set(STORAGE_KEYS.WEEKLY_QUESTS, { date: week, quests })
+  },
+
+  /** Haftalık görev değişikliğini Supabase'e yaz. */
+  async syncWeeklyToSupabase(state: QuestState): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const rows = Object.entries(state.quests).map(([questId, prog]) => ({
+      user_id: user.id,
+      quest_id: questId,
+      week_key: state.date,
+      progress: prog.progress,
+      completed: prog.completed,
+      claimed: prog.claimed,
+    }))
+
+    await supabase.from('weekly_quests').upsert(rows, { onConflict: 'user_id,quest_id,week_key' })
   },
 }

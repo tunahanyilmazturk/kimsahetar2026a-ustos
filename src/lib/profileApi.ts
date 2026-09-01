@@ -1,4 +1,5 @@
 import { storage, STORAGE_KEYS } from './storage'
+import { supabase } from './supabase'
 import { STARTER_AVATARS } from '../config/customShopAvatars'
 import type { Profile, Stats, Inventory, LeaderboardEntry, Settings } from '../types'
 
@@ -63,8 +64,6 @@ export const profileApi = {
       storage.set(STORAGE_KEYS.PROFILE, fresh)
       return fresh
     }
-    // level her zaman xp'den türetilir (tutarlılık)
-    // Eski kayıtlar için tek seferlik ID migrasyonu.
     const migrated = p.playerId ? p : { ...p, playerId: createPlayerId() }
     if (!p.playerId) storage.set(STORAGE_KEYS.PROFILE, migrated)
     return { ...migrated, level: levelFromXp(migrated.xp) }
@@ -74,6 +73,8 @@ export const profileApi = {
     const current = this.get()
     const next = { ...current, ...patch, level: levelFromXp(patch.xp ?? current.xp) }
     storage.set(STORAGE_KEYS.PROFILE, next)
+    // Supabase'e sync (fire-and-forget)
+    void this.syncToSupabase(next)
     return next
   },
 
@@ -99,6 +100,82 @@ export const profileApi = {
   reset(): void {
     storage.set(STORAGE_KEYS.PROFILE, defaultProfile())
   },
+
+  /** Supabase'den profile çek ve localStorage'a yaz (login sonrası çağrılır). */
+  async syncFromSupabase(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      storage.set<Profile>(STORAGE_KEYS.PROFILE, {
+        playerId: profile.player_id,
+        username: profile.username,
+        avatar: profile.avatar,
+        frame: profile.frame,
+        coins: profile.coins,
+        xp: profile.xp,
+        level: levelFromXp(profile.xp),
+        createdAt: new Date(profile.created_at).getTime(),
+      })
+    }
+
+    const { data: stats } = await supabase
+      .from('stats')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    if (stats) {
+      storage.set<Stats>(STORAGE_KEYS.STATS, {
+        gamesPlayed: stats.games_played,
+        wins: stats.wins,
+        winsAsImpostor: stats.wins_as_impostor,
+        winsAsPlayer: stats.wins_as_player,
+        streak: stats.streak,
+        bestStreak: stats.best_streak,
+      })
+    }
+
+    const { data: inv } = await supabase
+      .from('inventory')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    if (inv) {
+      storage.set<Inventory>(STORAGE_KEYS.INVENTORY, {
+        avatars: inv.avatars ?? [],
+        frames: inv.frames ?? ['frame_none'],
+        equippedAvatar: inv.equipped_avatar,
+        equippedFrame: inv.equipped_frame,
+      })
+    }
+  },
+
+  /** Profile'ı Supabase'e yaz (fire-and-forget). */
+  async syncToSupabase(profile: Profile): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from('profiles')
+      .update({
+        player_id: profile.playerId,
+        username: profile.username,
+        avatar: profile.avatar,
+        frame: profile.frame,
+        coins: profile.coins,
+        xp: profile.xp,
+        level: levelFromXp(profile.xp),
+      })
+      .eq('id', user.id)
+  },
 }
 
 // ─── Stats ───────────────────────────────────────────────────────────────────
@@ -111,6 +188,7 @@ export const statsApi = {
   update(patch: Partial<Stats>): Stats {
     const next = { ...this.get(), ...patch }
     storage.set(STORAGE_KEYS.STATS, next)
+    void this.syncToSupabase(next)
     return next
   },
 
@@ -131,11 +209,30 @@ export const statsApi = {
       bestStreak: Math.max(s.bestStreak, streak),
     }
     storage.set(STORAGE_KEYS.STATS, next)
+    void this.syncToSupabase(next)
     return next
   },
 
   reset(): void {
     storage.set(STORAGE_KEYS.STATS, defaultStats())
+  },
+
+  async syncToSupabase(stats: Stats): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from('stats')
+      .upsert({
+        user_id: user.id,
+        games_played: stats.gamesPlayed,
+        wins: stats.wins,
+        wins_as_impostor: stats.winsAsImpostor,
+        wins_as_player: stats.winsAsPlayer,
+        streak: stats.streak,
+        best_streak: stats.bestStreak,
+        updated_at: new Date().toISOString(),
+      })
   },
 }
 
@@ -153,6 +250,7 @@ export const inventoryApi = {
     if (!profileApi.addCoins(-price)) return { ok: false, reason: 'Yetersiz coin' }
     const next = { ...inv, avatars: [...inv.avatars, avatarId] }
     storage.set(STORAGE_KEYS.INVENTORY, next)
+    void this.syncToSupabase(next)
     return { ok: true }
   },
 
@@ -163,6 +261,7 @@ export const inventoryApi = {
     if (!profileApi.addCoins(-price)) return { ok: false, reason: 'Yetersiz coin' }
     const next = { ...inv, frames: [...inv.frames, frameId] }
     storage.set(STORAGE_KEYS.INVENTORY, next)
+    void this.syncToSupabase(next)
     return { ok: true }
   },
 
@@ -170,7 +269,9 @@ export const inventoryApi = {
   equipAvatar(avatarId: string): boolean {
     const inv = this.get()
     if (!inv.avatars.includes(avatarId)) return false
-    storage.set(STORAGE_KEYS.INVENTORY, { ...inv, equippedAvatar: avatarId })
+    const next = { ...inv, equippedAvatar: avatarId }
+    storage.set(STORAGE_KEYS.INVENTORY, next)
+    void this.syncToSupabase(next)
     return true
   },
 
@@ -178,28 +279,55 @@ export const inventoryApi = {
   equipFrame(frameId: string | null): boolean {
     const inv = this.get()
     if (frameId !== null && !inv.frames.includes(frameId)) return false
-    storage.set(STORAGE_KEYS.INVENTORY, { ...inv, equippedFrame: frameId })
+    const next = { ...inv, equippedFrame: frameId }
+    storage.set(STORAGE_KEYS.INVENTORY, next)
+    void this.syncToSupabase(next)
     return true
   },
 
   addAvatarReward(avatarId: string): void {
     const inv = this.get()
-    if (!inv.avatars.includes(avatarId)) storage.set(STORAGE_KEYS.INVENTORY, { ...inv, avatars: [...inv.avatars, avatarId] })
+    if (!inv.avatars.includes(avatarId)) {
+      const next = { ...inv, avatars: [...inv.avatars, avatarId] }
+      storage.set(STORAGE_KEYS.INVENTORY, next)
+      void this.syncToSupabase(next)
+    }
   },
 
   addFrameReward(frameId: string): void {
     const inv = this.get()
-    if (!inv.frames.includes(frameId)) storage.set(STORAGE_KEYS.INVENTORY, { ...inv, frames: [...inv.frames, frameId] })
+    if (!inv.frames.includes(frameId)) {
+      const next = { ...inv, frames: [...inv.frames, frameId] }
+      storage.set(STORAGE_KEYS.INVENTORY, next)
+      void this.syncToSupabase(next)
+    }
   },
 
   reset(): void {
     storage.set(STORAGE_KEYS.INVENTORY, defaultInventory())
   },
+
+  async syncToSupabase(inv: Inventory): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    await supabase
+      .from('inventory')
+      .upsert({
+        user_id: user.id,
+        avatars: inv.avatars,
+        frames: inv.frames,
+        equipped_avatar: inv.equippedAvatar,
+        equipped_frame: inv.equippedFrame,
+        updated_at: new Date().toISOString(),
+      })
+  },
 }
 
-// ─── Leaderboard (yerel) ─────────────────────────────────────────────────────
+// ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 export const leaderboardApi = {
+  /** Yerel leaderboard (localStorage). */
   getAll(): LeaderboardEntry[] {
     return storage.get<LeaderboardEntry[]>(STORAGE_KEYS.LEADERBOARD, [])
   },
@@ -207,13 +335,31 @@ export const leaderboardApi = {
   /** Bir oyuncu için entry güncelle/ekle (oyun sonunda çağrılır). */
   upsert(entry: LeaderboardEntry): void {
     const all = this.getAll()
-    // Yeni online kayıtlar ID ile, eski yerel kayıtlar kullanıcı adıyla eşleşir.
     const idx = all.findIndex((e) => entry.playerId ? e.playerId === entry.playerId : !e.playerId && e.username === entry.username)
     if (idx >= 0) all[idx] = entry
     else all.push(entry)
-    // wins'e göre azalan sırala
     all.sort((a, b) => b.wins - a.wins || b.xp - a.xp)
     storage.set(STORAGE_KEYS.LEADERBOARD, all)
+  },
+
+  /** Supabase'den global leaderboard çek. */
+  async fetchGlobal(limit = 50): Promise<LeaderboardEntry[]> {
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .select('*')
+      .limit(limit)
+
+    if (error || !data) return this.getAll()
+
+    return data.map((row) => ({
+      playerId: row.player_id,
+      username: row.username,
+      wins: row.wins,
+      xp: row.xp,
+      level: row.level,
+      gamesPlayed: row.games_played,
+      lastPlayed: new Date(row.last_played).getTime(),
+    }))
   },
 }
 

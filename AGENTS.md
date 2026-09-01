@@ -1,8 +1,8 @@
 # Sahtekar Kim? — Proje Durum Kaydı
 
 ## Genel Bakış
-**Sahtekar Kim?** (Who is the Impostor?) — aynı cihazda oynanan, backend'siz, PWA sosyal-deduction oyunu.
-React 19 + TypeScript + Vite + Tailwind CSS 4 + Motion + Vitest ile geliştiriliyor.
+**Sahtekar Kim?** (Who is the Impostor?) — aynı cihazda oynanan + online multiplayer destekli, PWA sosyal-deduction oyunu.
+React 19 + TypeScript + Vite + Tailwind CSS 4 + Motion + Supabase + Vitest ile geliştiriliyor.
 
 ## Proje Konumu
 `sahtekar-kim/` alt dizininde geliştiriliyor.
@@ -41,12 +41,23 @@ npm run preview      # build önizleme
 | 12 | PWA (vite-plugin-pwa, manifest, service worker, offline) | ✅ Tamam |
 | 13 | Test & Polish (lint, edge case testler, erişilebilirlik, performans) | ✅ Tamam |
 | 14 | Deployment (GitHub Actions, Pages, bundle splitting) | ✅ Tamam |
+| **15** | **Supabase Backend (Auth + DB + Realtime)** | **✅ Tamam** |
+
+## Faz 15: Supabase Backend Entegrasyonu (2026-09-01)
+- **Supabase** free tier ile backend eklendi (PostgreSQL + Auth + Realtime)
+- **Veritabanı şeması**: 9 tablo (profiles, stats, inventory, achievements, daily_quests, weekly_quests, friends, rooms, room_players, room_chat, room_votes) + leaderboard view + RLS politikaları + realtime yayın
+- **Auth**: `authApi` Supabase Auth'a bağlandı — kullanıcı adı `@sahtekar.game` email formatına çevrilir, şifreler hash'lenir, cross-device giriş
+- **Profile/Stats/Inventory**: Hybrid yapı — localStorage cache + Supabase sync (fire-and-forget). `syncFromSupabase` login sonrası, `syncToSupabase` her güncellemede
+- **Achievements/Quests**: Supabase sync eklendi (günlük + haftalık görevler)
+- **Leaderboard**: Yerel + Global mode toggle (LeaderboardModal'da)
+- **OnlineLobby**: Gerçek realtime oda senkronizasyonu — oda oluştur/katıl, oyuncu listesi realtime güncelle, hazır durumu, host kontrolü
+- **SocialModal**: Supabase friends tablosu — kullanıcı adıyla arkadaş ekle, avatar ile listele, kaldır
+- **App.tsx**: Login sonrası otomatik Supabase sync (profile + achievements + quests)
+- **.env**: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (git'e commit edilmez, `.env.example` template)
+- **supabase-schema.sql**: Tam SQL şeması repo'da (Supabase SQL Editor'da çalıştırılır)
 
 ## Evde Eklenen Özellikler (Faz 13-14 sonrası)
-- **Auth sistemi**: `AuthScreen` + `authApi` — yerel kullanıcı adı/şifre ile giriş ve kayıt (localStorage)
 - **WelcomeIntro**: İlk açılışta 3 slaytlık tanıtım (localStorage `sahtekar:intro-seen`)
-- **OnlineLobby**: Online oda oluşturma/katılma placeholder (backend bekliyor)
-- **SocialModal**: Arkadaş listesi (localStorage `sahtekar:friends`)
 - **Haftalık görevler**: `WEEKLY_QUESTS` + `questsApi.getWeekly/addWeeklyProgress/claimWeekly`
 - **Sprite-based avatarlar**: `avatar-sprite.png`, `premium-avatar-sprite.png`, `frame-sprite.png` ile CSS background-position
 - **Mobil bottom nav**: MainMenuPanel'de sabit alt menü + quick menu (sm:hidden)
@@ -54,21 +65,34 @@ npm run preview      # build önizleme
 - **gameUtils.ts**: `countVotes`, `isGuessCorrect`, `isValidHint`, `normalizeText` — test edilebilir saf fonksiyonlar
 - **toast-context.ts**: Toast context ayrı dosyaya taşındı (only-export-components lint kuralı)
 
-## Sıradaki Adım: Yayın sonrası kontrol
-- GitHub repository ayarlarında Pages kaynağının GitHub Actions olduğunu doğrula
-- İlk deployment sonrası PWA install/offline davranışını gerçek cihazda test et
-- Lighthouse ve gerçek cihaz responsive kontrolü
-- Backend (Supabase) entegrasyonu — online multiplayer, arkadaş davetleri, cross-device leaderboard
+## Sıradaki Adım: Online oyun mantığı
+- OnlineLobby'de "Oyunu Başlat" butonu gerçek oyun state makinesine bağlanacak
+- Realtime ile oyun durumu (kelime, sahtekar, oylar) senkronize edilecek
+- Her oyuncu kendi cihazında rolünü görecek (cihaz geçirme yerine)
+- Oda içi chat realtime olacak
 
 ## Mimari Özet
 
 ### Teknoloji Stack
 - React 19.2.x, TypeScript 7.0.x, Vite 8.2.x
 - Tailwind CSS 4.3.x, Motion 13.1.x, Lucide React 1.38.x
+- **Supabase** (PostgreSQL + Auth + Realtime) — @supabase/supabase-js
 - clsx, tailwind-merge
 - Vitest 4.1.x, Testing Library 16.3.x, jsdom 30.x
 - vite-plugin-pwa 1.3.x (PWA), sharp (icon üretimi)
 - oxlint 1.79.x (lint)
+
+### Backend (Supabase)
+- **Project**: `kimsahetar2026` (Asia-Pacific, Free tier)
+- **URL**: `https://xjzsuyzpbzlplnmlsyvu.supabase.co`
+- **Auth**: Email/password (username → `username@sahtekar.game` formatında)
+- **Tablolar**: profiles, stats, inventory, achievements, daily_quests, weekly_quests, friends, rooms, room_players, room_chat, room_votes
+- **View**: leaderboard (profiles + stats join)
+- **RLS**: Her tabloda Row Level Security aktif (kullanıcı sadece kendi verisini değiştirir)
+- **Realtime**: rooms, room_players, room_chat, room_votes tabloları realtime yayın için eklendi
+- **Trigger**: Yeni kullanıcı signup'da otomatik profile + stats + inventory oluşturur
+- **Şema dosyası**: `supabase-schema.sql` (repo'da, Supabase SQL Editor'da çalıştırılır)
+- **Env**: `.env` (git'e commit edilmez), `.env.example` (template)
 
 ### Dizin Yapısı
 ```
@@ -132,12 +156,15 @@ AuthScreen (giriş yoksa)
 ```
 
 ### Veri Akışı
-- `localStorage` (storage.ts abstraction — tek nokta, graceful fallback)
-- `authApi` → yerel kullanıcı kayıt/giriş/session
-- `profileApi` → profile, stats, inventory, leaderboard, settings
-- `questsApi` → günlük + haftalık görevler (tarih/hafta bazlı sıfırlama)
-- `achievementsApi` → başarım kontrolü + rozet avatar/çerçeve ödülleri
+- **Hybrid**: localStorage cache + Supabase sync (offline-first)
+- `authApi` → Supabase Auth (kullanıcı adı/şifre, cross-device session)
+- `profileApi` → localStorage + Supabase sync (profile, stats, inventory, leaderboard, settings)
+- `questsApi` → localStorage + Supabase sync (günlük + haftalık görevler)
+- `achievementsApi` → localStorage + Supabase sync (başarım kontrolü + ödüller)
 - `scoreSystem.applyGameResult` → oyun sonunda XP/coin/stats/leaderboard günceller
+- `supabase.ts` → Supabase client (auth, realtime, db)
+- Login sonrası: `syncFromSupabase` ile cloud'dan yerel cache'e veri çekilir
+- Her güncellemede: `syncToSupabase` ile cloud'a fire-and-forget yazılır
 
 ### Bot Sistemi
 - `bot.ts` → EASY/SMART/EXPERT davranışları
@@ -182,12 +209,13 @@ AuthScreen (giriş yoksa)
 - Toplam ~520 kB JS / ~150 kB gzip
 
 ## Önemli Notlar
-- Backend YOK — tüm veriler localStorage'da
-- Online multiplayer YOK — OnlineLobby placeholder (backend bekliyor)
+- **Backend**: Supabase (free tier) — Auth + PostgreSQL + Realtime
+- **Online multiplayer**: Oda oluşturma/katılma + realtime oyuncu listesi aktif. Oyun mantığı (kelime dağıtım, oylama) henüz realtime değil.
+- **Offline-first**: Supabase bağlantısı olmasa bile localStorage ile çalışır
 - Capacitor/mobile YOK — PWA olarak çalışır
 - Tüm UI Türkçe
 - Tüm testler geçiyor (125/125)
-- Build başarılı
+- Build başarılı (~610 kB JS / ~190 kB gzip — Supabase client dahil)
 - Lint temiz (0 uyarı, 0 hata — oxlint)
 - qrcode.react kaldırıldı (kullanılmıyordu)
 

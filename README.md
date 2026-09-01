@@ -1,23 +1,23 @@
 # Sahtekar Kim?
 
-Aynı cihazda oynanan, backend gerektirmeyen PWA sosyal-deduction oyunu.
+Aynı cihazda oynanabilen ve online multiplayer destekleyen PWA sosyal-deduction oyunu.
 Oyuncular kelimeyi ve ipuçlarını takip ederek sahtekârı bulmaya çalışır; sahtekâr ise yakalanmadan önce kelimeyi tahmin etmeye çalışır.
 
 ## Özellikler
 
 - 3–12 oyuncu desteği (gerçek oyuncu + bot karışık)
 - Aynı cihazda gizli rol gösterimi ve cihazı geçirme akışı
+- **Online multiplayer**: Supabase Realtime ile oda oluşturma/katılma, realtime oyuncu listesi
 - EASY, SMART ve EXPERT botlar (otomatik ipucu, oy ve kelime tahmini)
 - 16 kategori ve 223 kelimelik havuz + özel kelime ekleme
 - Turlu ipucu sistemi, pas hakkı ve süre sayacı
 - Oylama, sahtekârın son kelime tahmini ve sonuç ekranı
-- Yerel hesap sistemi (kullanıcı adı/şifre ile giriş/kayıt)
-- XP, seviye, coin, günlük + haftalık görev, başarım ve yerel leaderboard
+- **Supabase Auth**: kullanıcı adı/şifre ile giriş, cross-device senkronizasyon
+- XP, seviye, coin, günlük + haftalık görev, başarım ve leaderboard (yerel + global)
 - Market: avatar ve çerçeve satın alma/donatma (sprite-based görseller)
-- Sosyal: arkadaş listesi (online davet için placeholder)
-- Online oda oluşturma/katılma (backend entegrasyonu bekliyor)
+- Sosyal: kullanıcı adıyla arkadaş ekleme (Supabase)
 - İlk açılışta tanıtım slaytları (WelcomeIntro)
-- LocalStorage ile kalıcı profil ilerlemesi
+- **Offline-first**: Supabase bağlantısı olmasa bile localStorage ile çalışır
 - PWA: offline çalışma, ana ekrana ekleme, otomatik güncelleme prompt
 - Mobil uyumlu, erişilebilir arayüz (high contrast, large text, aria-label, min 44px touch)
 - Mobil bottom navigation + quick menu
@@ -30,6 +30,7 @@ Oyuncular kelimeyi ve ipuçlarını takip ederek sahtekârı bulmaya çalışır
 - Tailwind CSS 4
 - Motion 13
 - Lucide React
+- **Supabase** (PostgreSQL + Auth + Realtime)
 - clsx + tailwind-merge
 - Vitest 4 + Testing Library 16
 - vite-plugin-pwa
@@ -42,6 +43,22 @@ git clone https://github.com/tunahanyilmazturk/kimsahetar2026a-ustos.git
 cd kimsahetar2026a-ustos
 npm install
 ```
+
+### Supabase Backend Kurulumu
+
+1. [supabase.com](https://supabase.com) üzerinde ücretsiz hesap aç ve yeni proje oluştur.
+2. Proje Settings → API sayfasından `Project URL` ve `anon public key` al.
+3. `.env.example` dosyasını `.env` olarak kopyala ve değerleri doldur:
+
+```bash
+cp .env.example .env
+# .env dosyasını düzenle:
+# VITE_SUPABASE_URL=https://your-project.supabase.co
+# VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+4. Supabase Dashboard → SQL Editor → `supabase-schema.sql` dosyasının içeriğini yapıştır ve Run tıkla.
+5. Bu şema tabloları, RLS politikalarını, trigger'ları ve realtime yayınları oluşturur.
 
 ## Geliştirme
 
@@ -96,7 +113,9 @@ AuthScreen (giriş yoksa)
 
 ## Veri ve gizlilik
 
-Uygulama backend kullanmaz. Hesap bilgileri, profil, istatistik, görevler, başarımlar, arkadaş listesi ve leaderboard yalnızca tarayıcının LocalStorage alanında tutulur. Tarayıcı verileri temizlenirse yerel ilerleme de silinir.
+Uygulama **Supabase** (PostgreSQL) backend kullanır. Hesap bilgileri, profil, istatistik, görevler, başarımlar, arkadaş listesi ve leaderboard Supabase'de saklanır ve cross-device senkronize edilir. Offline-first mimari sayesinde Supabase bağlantısı olmasa bile localStorage ile çalışmaya devam eder.
+
+Supabase free tier limitleri: 500MB veritabanı, 50k aylık aktif kullanıcı, 1GB storage.
 
 ## Deployment
 
@@ -127,14 +146,14 @@ src/
 │   └── offline/      # Lobi ve oyun ekranları
 ├── config/           # Avatar, çerçeve, başarım ve görev tanımları
 ├── hooks/            # Profil, ayar ve PWA hook'ları
-├── lib/              # Storage, profil, skor, auth ve ilerleme API'leri
+├── lib/              # supabase, storage, profil, skor, auth, ilerleme API'leri
 ├── test/             # Unit ve component testleri (125 test)
 ├── utils/            # Kelime havuzu, bot, oyun mantığı, cn
 ├── types.ts          # Tüm TypeScript tipleri
 ├── constants.ts      # 223 kelimelik havuz, 16 kategori
 ├── OfflineGame.tsx   # Offline oyun state machine
-├── OnlineLobby.tsx   # Online oda placeholder
-├── App.tsx           # Auth gate + ekran geçişi + PWA update
+├── OnlineLobby.tsx   # Online oda (Supabase Realtime)
+├── App.tsx           # Auth gate + ekran geçişi + PWA update + Supabase sync
 └── main.tsx          # PWA service worker registration
 ```
 

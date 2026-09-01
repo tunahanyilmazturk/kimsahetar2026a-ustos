@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Trophy, Medal, Crown, Sparkles, Gamepad2, Clock, Trash2 } from 'lucide-react'
+import { Trophy, Medal, Crown, Sparkles, Gamepad2, Clock, Trash2, Globe, Loader2 } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Avatar } from '../common/Avatar'
 import { leaderboardApi, profileApi, statsApi } from '../../lib/profileApi'
@@ -14,10 +15,31 @@ export interface LeaderboardModalProps {
 
 export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
   const toast = useToast()
+  const [mode, setMode] = useState<'local' | 'global'>('local')
+  const [globalEntries, setGlobalEntries] = useState<LeaderboardEntry[]>([])
+  const [globalLoading, setGlobalLoading] = useState(false)
 
-  const entries = leaderboardApi.getAll()
+  const localEntries = leaderboardApi.getAll()
+  const entries = mode === 'local' ? localEntries : globalEntries
   const profile = profileApi.get()
   const stats = statsApi.get()
+
+  useEffect(() => {
+    if (!open || mode !== 'global' || globalEntries.length > 0) return
+    let cancelled = false
+    void (async () => {
+      if (!cancelled) setGlobalLoading(true)
+      try {
+        const data = await leaderboardApi.fetchGlobal(50)
+        if (!cancelled) setGlobalEntries(data)
+      } catch {
+        if (!cancelled) toast.error('Global sıralama yüklenemedi')
+      } finally {
+        if (!cancelled) setGlobalLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [open, mode, globalEntries.length, toast])
 
   // Mevcut oyuncunun sırasını bul
   const myIndex = entries.findIndex((e) => e.playerId === profile.playerId || (!e.playerId && e.username === profile.username))
@@ -57,7 +79,36 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
         )
       }
     >
-      {entries.length === 0 ? (
+      {/* ─── Mode toggle ─────────────────────────────────────────────── */}
+      <div className="mb-4 flex gap-2 rounded-xl bg-slate-800/40 p-1">
+        <button
+          type="button"
+          onClick={() => setMode('local')}
+          className={cn(
+            'flex-1 rounded-lg py-2 text-xs font-medium transition-colors',
+            mode === 'local' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200',
+          )}
+        >
+          Yerel
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('global')}
+          className={cn(
+            'flex-1 rounded-lg py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1',
+            mode === 'global' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200',
+          )}
+        >
+          <Globe className="h-3 w-3" />
+          Global
+        </button>
+      </div>
+
+      {mode === 'global' && globalLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+        </div>
+      ) : entries.length === 0 ? (
         /* ─── Boş durum ─────────────────────────────────────────────── */
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <Trophy className="h-12 w-12 text-slate-700" />

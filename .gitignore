@@ -39,3 +39,8 @@ Thumbs.db
 *.tsbuildinfo
 commit_msg.txt
 commit-msg.txt
+
+# Environment variables
+.env
+.env.local
+.env.*local
