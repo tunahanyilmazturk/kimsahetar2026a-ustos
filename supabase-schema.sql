@@ -485,22 +485,27 @@ grant select on public.leaderboard to anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- REALTIME: tabloları realtime yayınına ekle
--- (önce çıkar, sonra ekle — tekrar çalıştırınca hata vermesin)
+-- (DO bloğu ile zaten ekliyse atla — tekrar çalıştırınca hata vermesin)
 -- ═══════════════════════════════════════════════════════════════════════════
 
-alter publication supabase_realtime drop table if exists public.rooms;
-alter publication supabase_realtime drop table if exists public.room_players;
-alter publication supabase_realtime drop table if exists public.room_chat;
-alter publication supabase_realtime drop table if exists public.room_votes;
-alter publication supabase_realtime drop table if exists public.friends;
-alter publication supabase_realtime drop table if exists public.room_invites;
+do $$
+declare
+  t text;
+  tables text[] := array['public.rooms','public.room_players','public.room_chat','public.room_votes','public.friends','public.room_invites'];
+  is_member boolean;
+begin
+  foreach t in array tables loop
+    -- Tablo zaten publication'da mi kontrol et
+    select exists(
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname || '.' || tablename = t
+    ) into is_member;
 
-alter publication supabase_realtime add table public.rooms;
-alter publication supabase_realtime add table public.room_players;
-alter publication supabase_realtime add table public.room_chat;
-alter publication supabase_realtime add table public.room_votes;
-alter publication supabase_realtime add table public.friends;
-alter publication supabase_realtime add table public.room_invites;
+    if not is_member then
+      execute format('alter publication supabase_realtime add table %s', t);
+    end if;
+  end loop;
+end $$;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- CLEANUP: 1 saatten eski LOBBY odalarını sil (stale odalar)
