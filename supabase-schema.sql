@@ -123,6 +123,7 @@ create table if not exists public.rooms (
 -- ─── 9. ROOM PLAYERS ────────────────────────────────────────────────────────
 
 create table if not exists public.room_players (
+  id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,  -- nullable: botlar için null
   is_bot boolean not null default false,
@@ -132,20 +133,55 @@ create table if not exists public.room_players (
   is_ready boolean not null default false,
   seat integer not null default 0,        -- turn order için sıra numarası
   passed boolean not null default false,   -- pas durumu
-  joined_at timestamptz not null default now(),
-  primary key (room_id, user_id)
+  joined_at timestamptz not null default now()
 );
 
 -- Eski veritabanlarına bot sütunları ekle
+alter table public.room_players add column if not exists id uuid default gen_random_uuid();
 alter table public.room_players add column if not exists is_bot boolean not null default false;
 alter table public.room_players add column if not exists bot_name text;
 alter table public.room_players add column if not exists bot_avatar text;
 alter table public.room_players add column if not exists bot_difficulty text not null default 'SMART';
--- user_id nullable yap (botlar için) — önce not null constraint'i kaldır
+
+-- Eski primary key (room_id, user_id) varsa kaldır — user_id artık nullable (botlar için)
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'room_players_pkey'
+      and contype = 'p'
+      and conrelid = 'public.room_players'::regclass
+  ) then
+    alter table public.room_players drop constraint room_players_pkey;
+  end if;
+end $$;
+
+-- id sütunu yoksa ekle ve primary key yap
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where contype = 'p'
+      and conrelid = 'public.room_players'::regclass
+  ) then
+    -- id null olan satırlara uuid ver
+    update public.room_players set id = gen_random_uuid() where id is null;
+    -- id not null yap
+    alter table public.room_players alter column id set not null;
+    -- primary key ekle
+    alter table public.room_players add primary key (id);
+  end if;
+end $$;
+
+-- user_id nullable yap (botlar için)
 alter table public.room_players alter column user_id drop not null;
 
--- Botlar için user_id null olabilir — primary key'i bot_name ile birlikte kullan
--- (user_id null ise bot_name + room_id unique olmalı)
+-- Gerçek oyuncular için unique constraint (bir oyuncu bir odada bir kez)
+create unique index if not exists idx_room_players_user
+  on public.room_players(room_id, user_id)
+  where is_bot = false and user_id is not null;
+
+-- Botlar için unique constraint (aynı isimde bot bir odada bir kez)
 create unique index if not exists idx_room_players_bot
   on public.room_players(room_id, bot_name)
   where is_bot = true;
