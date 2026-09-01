@@ -636,10 +636,10 @@ export function OnlineLobby({
   if (activeRoom) {
     const allReady = players.length >= 3 && players.every((p) => p.is_ready)
     return (
-      <div className="min-h-svh w-full bg-slate-950 px-4 py-6 text-slate-100">
-        <div className="mx-auto w-full max-w-md">
-          {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
+      <div className="flex h-svh w-full flex-col bg-slate-950 px-4 py-4 text-slate-100">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden">
+          {/* Header — sabit */}
+          <div className="flex shrink-0 items-center justify-between">
             <button type="button" onClick={leaveRoom} className="flex min-h-11 items-center gap-2 text-slate-400 hover:text-white">
               <ArrowLeft className="h-5 w-5" /> Çık
             </button>
@@ -658,20 +658,19 @@ export function OnlineLobby({
             </div>
           </div>
 
-          {/* Oda kodu */}
-          <div className="mb-6">
+          {/* Oda kodu — sabit */}
+          <div className="mt-4 shrink-0">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Oda kodu</p>
-            <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-700">
-              <span className="font-mono text-2xl tracking-[0.3em] text-cyan-300">{activeRoom}</span>
+            <div className="mt-1.5 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-2.5 ring-1 ring-slate-700">
+              <span className="font-mono text-xl tracking-[0.3em] text-cyan-300">{activeRoom}</span>
               <button type="button" onClick={copyCode} aria-label="Oda kodunu kopyala" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">
                 <Copy className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Bu kodu arkadaşlarınla paylaş — kodu girip odaya katılabilirler.</p>
           </div>
 
-          {/* Oyun ayarları özeti */}
-          <div className="mb-4 flex flex-wrap gap-2 text-xs">
+          {/* Oyun ayarları özeti — sabit */}
+          <div className="mt-3 shrink-0 flex flex-wrap gap-1.5 text-xs">
             <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">{settings.turnTimeLimit}sn/tur</span>
             <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">{settings.roundsBeforeVoting} tur</span>
             <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">
@@ -682,22 +681,24 @@ export function OnlineLobby({
             )}
           </div>
 
-          {/* Oyuncular */}
-          <div className="mb-2 flex items-center gap-2 text-sm text-slate-400">
-            <Users className="h-4 w-4" />
-            <span>{players.length} oyuncu</span>
-            <span className="text-slate-600">·</span>
-            <span className={cn(allReady ? 'text-emerald-400' : 'text-amber-400')}>
-              {allReady ? 'Herkes hazır' : `${players.filter((p) => p.is_ready).length}/${players.length} hazır`}
-            </span>
+          {/* Oyuncular + Bot ekleme — scroll alanı */}
+          <div className="mt-3 shrink-0">
+            <div className="mb-1.5 flex items-center gap-2 text-sm text-slate-400">
+              <Users className="h-4 w-4" />
+              <span>{players.length} oyuncu</span>
+              <span className="text-slate-600">·</span>
+              <span className={cn(allReady ? 'text-emerald-400' : 'text-amber-400')}>
+                {allReady ? 'Herkes hazır' : `${players.filter((p) => p.is_ready).length}/${players.length} hazır`}
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             {players.map((p) => (
               <div
                 key={p.user_id}
                 className={cn(
-                  'flex items-center gap-3 rounded-xl px-4 py-3 ring-1',
+                  'flex items-center gap-3 rounded-xl px-4 py-2.5 ring-1',
                   p.is_ready ? 'bg-emerald-500/10 ring-emerald-500/30' : 'bg-slate-900/80 ring-slate-800',
                   p.is_bot && 'bg-indigo-500/5 ring-indigo-500/20',
                 )}
@@ -727,45 +728,45 @@ export function OnlineLobby({
                 )}
               </div>
             ))}
+
+            {/* Bot ekleme (sadece host) */}
+            {isHost && players.length < 8 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => addBot('EASY')}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+                >
+                  <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                  Kolay Bot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addBot('SMART')}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+                >
+                  <Bot className="h-3.5 w-3.5 text-amber-400" />
+                  Akıllı Bot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addBot('EXPERT')}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+                >
+                  <Bot className="h-3.5 w-3.5 text-rose-400" />
+                  Uzman Bot
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Bot ekleme (sadece host) */}
-          {isHost && players.length < 8 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => addBot('EASY')}
-                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
-              >
-                <Bot className="h-3.5 w-3.5 text-emerald-400" />
-                Kolay Bot
-              </button>
-              <button
-                type="button"
-                onClick={() => addBot('SMART')}
-                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
-              >
-                <Bot className="h-3.5 w-3.5 text-amber-400" />
-                Akıllı Bot
-              </button>
-              <button
-                type="button"
-                onClick={() => addBot('EXPERT')}
-                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
-              >
-                <Bot className="h-3.5 w-3.5 text-rose-400" />
-                Uzman Bot
-              </button>
-            </div>
-          )}
-
-          {/* Lobi chat */}
-          <div className="mt-4">
-            <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+          {/* Lobi chat — sabit yükseklik, scroll */}
+          <div className="mt-3 shrink-0">
+            <div className="mb-1.5 flex items-center gap-2 text-xs text-slate-400">
               <MessageSquare className="h-3.5 w-3.5" />
               Lobi sohbeti
             </div>
-            <div ref={chatScrollRef} className="max-h-32 space-y-1.5 overflow-y-auto rounded-xl bg-slate-900/50 p-3 ring-1 ring-slate-800">
+            <div ref={chatScrollRef} className="h-24 space-y-1.5 overflow-y-auto rounded-xl bg-slate-900/50 p-3 ring-1 ring-slate-800">
               {chat.length === 0 ? (
                 <p className="py-3 text-center text-xs text-slate-600">Henüz mesaj yok...</p>
               ) : (
@@ -793,8 +794,8 @@ export function OnlineLobby({
             </div>
           </div>
 
-          {/* Aksiyonlar */}
-          <div className="mt-6 flex gap-3">
+          {/* Aksiyonlar — sabit en altta */}
+          <div className="mt-3 shrink-0 flex gap-3">
             <Button variant="secondary" onClick={leaveRoom}>
               <LogOut className="h-4 w-4" />
               Ayrıl
@@ -812,7 +813,7 @@ export function OnlineLobby({
             )}
           </div>
           {isHost && !allReady && (
-            <p className="mt-3 text-center text-xs text-slate-500">
+            <p className="mt-2 shrink-0 text-center text-xs text-slate-500">
               Oyunu başlatmak için en az 3 oyuncu ve herkesin hazır olması gerekir.
             </p>
           )}
