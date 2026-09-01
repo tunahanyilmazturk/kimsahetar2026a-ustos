@@ -38,8 +38,12 @@ create table if not exists public.stats (
   wins_as_player integer not null default 0,
   streak integer not null default 0,
   best_streak integer not null default 0,
+  points integer not null default 0,          -- puan sistemi (liderlik sıralaması)
   updated_at timestamptz not null default now()
 );
+
+-- Eski veritabanlarına points sütunu ekle
+alter table public.stats add column if not exists points integer not null default 0;
 
 -- ─── 3. INVENTORY ───────────────────────────────────────────────────────────
 
@@ -294,14 +298,20 @@ create or replace view public.leaderboard as
 select
   p.player_id,
   p.username,
+  p.avatar,
   s.wins,
+  s.wins_as_impostor,
+  s.wins_as_player,
+  s.points,
   p.xp,
   p.level,
   s.games_played,
+  s.streak,
+  s.best_streak,
   s.updated_at as last_played
 from public.profiles p
 join public.stats s on s.user_id = p.id
-order by s.wins desc, p.xp desc;
+order by s.points desc, s.wins desc, p.xp desc;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- RLS (Row Level Security) Politikaları

@@ -45,21 +45,21 @@ describe('statsApi', () => {
   beforeEach(() => window.localStorage.clear())
 
   it('recordGame kazançta streak artar', () => {
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
     let s = statsApi.get()
     expect(s.gamesPlayed).toBe(1)
     expect(s.wins).toBe(1)
     expect(s.winsAsPlayer).toBe(1)
     expect(s.streak).toBe(1)
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
     s = statsApi.get()
     expect(s.streak).toBe(2)
     expect(s.bestStreak).toBe(2)
   })
 
   it('recordGame kayıpta streak sıfırlanır', () => {
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
-    statsApi.recordGame({ won: false, wonAsImpostor: false, wonAsPlayer: false })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
+    statsApi.recordGame({ won: false, wonAsImpostor: false, wonAsPlayer: false, points: 15 })
     const s = statsApi.get()
     expect(s.streak).toBe(0)
     expect(s.bestStreak).toBe(1)
@@ -106,16 +106,16 @@ describe('leaderboardApi', () => {
   beforeEach(() => window.localStorage.clear())
 
   it('upsert ekler ve wins azalan sıralar', () => {
-    leaderboardApi.upsert({ username: 'A', wins: 1, xp: 10, level: 1, gamesPlayed: 2, lastPlayed: 1 })
-    leaderboardApi.upsert({ username: 'B', wins: 3, xp: 50, level: 2, gamesPlayed: 5, lastPlayed: 2 })
-    leaderboardApi.upsert({ username: 'C', wins: 2, xp: 20, level: 1, gamesPlayed: 3, lastPlayed: 3 })
+    leaderboardApi.upsert({ username: 'A', wins: 1, xp: 10, level: 1, gamesPlayed: 2, lastPlayed: 1, points: 0 })
+    leaderboardApi.upsert({ username: 'B', wins: 3, xp: 50, level: 2, gamesPlayed: 5, lastPlayed: 2, points: 0 })
+    leaderboardApi.upsert({ username: 'C', wins: 2, xp: 20, level: 1, gamesPlayed: 3, lastPlayed: 3, points: 0 })
     const all = leaderboardApi.getAll()
     expect(all.map((e) => e.username)).toEqual(['B', 'C', 'A'])
   })
 
   it('upsert aynı username günceller', () => {
-    leaderboardApi.upsert({ username: 'A', wins: 1, xp: 10, level: 1, gamesPlayed: 2, lastPlayed: 1 })
-    leaderboardApi.upsert({ username: 'A', wins: 5, xp: 60, level: 3, gamesPlayed: 6, lastPlayed: 2 })
+    leaderboardApi.upsert({ username: 'A', wins: 1, xp: 10, level: 1, gamesPlayed: 2, lastPlayed: 1, points: 0 })
+    leaderboardApi.upsert({ username: 'A', wins: 5, xp: 60, level: 3, gamesPlayed: 6, lastPlayed: 2, points: 0 })
     const all = leaderboardApi.getAll()
     expect(all).toHaveLength(1)
     expect(all[0]!.wins).toBe(5)

@@ -110,6 +110,7 @@ export interface Stats {
   winsAsPlayer: number
   streak: number // üst üste galibiyet
   bestStreak: number
+  points: number // puan sistemi (liderlik sıralaması)
 }
 
 export interface Inventory {
@@ -137,10 +138,16 @@ export interface LeaderboardEntry {
   /** Online sıralamada benzersiz oyuncu kimliği. Eski yerel kayıtlar boş olabilir. */
   playerId?: string
   username: string
+  avatar?: string
   wins: number
+  winsAsImpostor?: number
+  winsAsPlayer?: number
+  points: number
   xp: number
   level: number
   gamesPlayed: number
+  streak?: number
+  bestStreak?: number
   lastPlayed: number
 }
 

@@ -15,7 +15,7 @@ export interface LeaderboardModalProps {
 
 export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
   const toast = useToast()
-  const [mode, setMode] = useState<'local' | 'global'>('local')
+  const [mode, setMode] = useState<'local' | 'global'>('global')
   const [globalEntries, setGlobalEntries] = useState<LeaderboardEntry[]>([])
   const [globalLoading, setGlobalLoading] = useState(false)
 
@@ -25,7 +25,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
   const stats = statsApi.get()
 
   useEffect(() => {
-    if (!open || mode !== 'global' || globalEntries.length > 0) return
+    if (!open || mode !== 'global') return
     let cancelled = false
     void (async () => {
       if (!cancelled) setGlobalLoading(true)
@@ -39,7 +39,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
       }
     })()
     return () => { cancelled = true }
-  }, [open, mode, globalEntries.length, toast])
+  }, [open, mode, toast])
 
   // Mevcut oyuncunun sırasını bul
   const myIndex = entries.findIndex((e) => e.playerId === profile.playerId || (!e.playerId && e.username === profile.username))
@@ -117,8 +117,12 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
           <div className="mt-2 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/50 px-4 py-3">
             <p className="text-xs text-slate-400">Mevcut durumun:</p>
             <div className="mt-1.5 flex items-center gap-4 text-sm">
-              <span className="inline-flex items-center gap-1 text-slate-300">
+              <span className="inline-flex items-center gap-1 text-amber-300">
                 <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                {stats.points} puan
+              </span>
+              <span className="inline-flex items-center gap-1 text-slate-300">
+                <Medal className="h-3.5 w-3.5 text-slate-400" />
                 {stats.wins} galibiyet
               </span>
               <span className="inline-flex items-center gap-1 text-slate-300">
@@ -197,8 +201,8 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
                     )}>
                       {e.username}{isMe && ' (sen)'}
                     </span>
-                    <span className="text-xs text-slate-400">{e.wins} galibiyet</span>
-                    <span className="text-[10px] text-slate-500">Lv.{e.level}</span>
+                    <span className="text-xs font-semibold text-amber-300 tabular-nums">{e.points ?? 0} puan</span>
+                    <span className="text-[10px] text-slate-500">{e.wins} galibiyet · Lv.{e.level}</span>
                   </motion.div>
                 )
               })}
@@ -216,9 +220,9 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
 
           {/* ─── İstatistik özeti ────────────────────────────────────── */}
           <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/50 px-4 py-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-4 gap-2 text-center">
               <div>
-                <p className="text-xs text-slate-500">Toplam Oyuncu</p>
+                <p className="text-xs text-slate-500">Oyuncu</p>
                 <p className="text-sm font-semibold text-slate-200 tabular-nums">{entries.length}</p>
               </div>
               <div>
@@ -228,7 +232,11 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Senin Sıran</p>
+                <p className="text-xs text-slate-500">Senin Puanın</p>
+                <p className="text-sm font-semibold text-amber-300 tabular-nums">{stats.points}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Sıran</p>
                 <p className="text-sm font-semibold text-indigo-300 tabular-nums">
                   {myIndex >= 0 ? `#${myIndex + 1}` : '—'}
                 </p>
@@ -278,10 +286,10 @@ function LeaderboardRow({ entry, rank, isMe }: { entry: LeaderboardEntry; rank: 
         </div>
       </div>
       <div className="text-right shrink-0">
-        <p className="text-sm font-semibold text-amber-300 tabular-nums">{entry.wins}</p>
-        <p className="text-[10px] text-slate-500">galibiyet</p>
+        <p className="text-sm font-semibold text-amber-300 tabular-nums">{entry.points ?? 0}</p>
+        <p className="text-[10px] text-slate-500">puan</p>
       </div>
-      <span className="text-xs text-slate-500 tabular-nums shrink-0">Lv.{entry.level}</span>
+      <span className="text-xs text-slate-500 tabular-nums shrink-0">{entry.wins}G · Lv.{entry.level}</span>
     </motion.div>
   )
 }

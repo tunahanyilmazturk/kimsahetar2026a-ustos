@@ -42,6 +42,7 @@ function defaultStats(): Stats {
     winsAsPlayer: 0,
     streak: 0,
     bestStreak: 0,
+    points: 0,
   }
 }
 
@@ -139,6 +140,7 @@ export const profileApi = {
         winsAsPlayer: stats.wins_as_player,
         streak: stats.streak,
         bestStreak: stats.best_streak,
+        points: stats.points ?? 0,
       })
     }
 
@@ -197,6 +199,7 @@ export const statsApi = {
     won: boolean
     wonAsImpostor: boolean
     wonAsPlayer: boolean
+    points: number
   }): Stats {
     const s = this.get()
     const streak = result.won ? s.streak + 1 : 0
@@ -207,7 +210,17 @@ export const statsApi = {
       winsAsPlayer: s.winsAsPlayer + (result.wonAsPlayer ? 1 : 0),
       streak,
       bestStreak: Math.max(s.bestStreak, streak),
+      points: s.points + result.points,
     }
+    storage.set(STORAGE_KEYS.STATS, next)
+    void this.syncToSupabase(next)
+    return next
+  },
+
+  /** Puan ekle (streak bonus vb. için). */
+  addPoints(amount: number): Stats {
+    const s = this.get()
+    const next = { ...s, points: Math.max(0, s.points + amount) }
     storage.set(STORAGE_KEYS.STATS, next)
     void this.syncToSupabase(next)
     return next
@@ -231,6 +244,7 @@ export const statsApi = {
         wins_as_player: stats.winsAsPlayer,
         streak: stats.streak,
         best_streak: stats.bestStreak,
+        points: stats.points,
         updated_at: new Date().toISOString(),
       })
   },
@@ -338,7 +352,7 @@ export const leaderboardApi = {
     const idx = all.findIndex((e) => entry.playerId ? e.playerId === entry.playerId : !e.playerId && e.username === entry.username)
     if (idx >= 0) all[idx] = entry
     else all.push(entry)
-    all.sort((a, b) => b.wins - a.wins || b.xp - a.xp)
+    all.sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || b.wins - a.wins || b.xp - a.xp)
     storage.set(STORAGE_KEYS.LEADERBOARD, all)
   },
 
@@ -354,10 +368,16 @@ export const leaderboardApi = {
     return data.map((row) => ({
       playerId: row.player_id,
       username: row.username,
+      avatar: row.avatar,
       wins: row.wins,
+      winsAsImpostor: row.wins_as_impostor,
+      winsAsPlayer: row.wins_as_player,
+      points: row.points ?? 0,
       xp: row.xp,
       level: row.level,
       gamesPlayed: row.games_played,
+      streak: row.streak,
+      bestStreak: row.best_streak,
       lastPlayed: new Date(row.last_played).getTime(),
     }))
   },

@@ -129,7 +129,7 @@ describe('applyGameResult — genişletilmiş', () => {
   })
 
   it('statsApi.recordGame direkt — galibiyet', () => {
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
     const stats = statsApi.get()
     expect(stats.gamesPlayed).toBe(1)
     expect(stats.wins).toBe(1)
@@ -139,9 +139,9 @@ describe('applyGameResult — genişletilmiş', () => {
   })
 
   it('statsApi.recordGame direkt — mağlubiyet streak sıfırlar', () => {
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
-    statsApi.recordGame({ won: false, wonAsImpostor: false, wonAsPlayer: false })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
+    statsApi.recordGame({ won: false, wonAsImpostor: false, wonAsPlayer: false, points: 15 })
     const stats = statsApi.get()
     expect(stats.streak).toBe(0)
     expect(stats.bestStreak).toBe(2)

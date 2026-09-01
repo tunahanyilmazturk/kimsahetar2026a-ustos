@@ -22,6 +22,7 @@ describe('achievementsApi', () => {
       winsAsPlayer: 0,
       streak: 0,
       bestStreak: 0,
+      points: 0,
     }
     const unlocked = achievementsApi.check(stats)
     expect(unlocked).toContain('first_game')
@@ -36,6 +37,7 @@ describe('achievementsApi', () => {
       winsAsPlayer: 0,
       streak: 0,
       bestStreak: 0,
+      points: 0,
     }
     achievementsApi.check(stats)
     const second = achievementsApi.check(stats)
@@ -43,7 +45,7 @@ describe('achievementsApi', () => {
   })
 
   it('real statsApi ile entegrasyon', () => {
-    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true })
+    statsApi.recordGame({ won: true, wonAsImpostor: false, wonAsPlayer: true, points: 100 })
     const s = statsApi.get()
     const unlocked = achievementsApi.check(s)
     expect(unlocked).toContain('first_game')
@@ -52,7 +54,7 @@ describe('achievementsApi', () => {
 
   it('impostor_master 5 sahtekar galibiyeti', () => {
     for (let i = 0; i < 5; i++) {
-      statsApi.recordGame({ won: true, wonAsImpostor: true, wonAsPlayer: false })
+      statsApi.recordGame({ won: true, wonAsImpostor: true, wonAsPlayer: false, points: 100 })
     }
     const s = statsApi.get()
     const unlocked = achievementsApi.check(s)
