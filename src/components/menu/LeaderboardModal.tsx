@@ -1,12 +1,60 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Trophy, Medal, Crown, Sparkles, Gamepad2, Clock, Trash2, Globe, Loader2 } from 'lucide-react'
+import { Trophy, Medal, Crown, Sparkles, Gamepad2, Clock, Trash2, Globe, Loader2, Skull, Eye, Ghost, Flame, Star, Zap, Target, Shield, Swords, Diamond } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Avatar } from '../common/Avatar'
 import { leaderboardApi, profileApi, statsApi } from '../../lib/profileApi'
 import { useToast } from '../common/toast-context'
 import { cn } from '../../utils/cn'
 import type { LeaderboardEntry } from '../../types'
+
+// ─── Tag Sistemi ─────────────────────────────────────────────────────────────
+
+interface RankTag {
+  label: string
+  icon: typeof Crown
+  className: string
+}
+
+/** Sıralamaya göre tag döndürür (oyunla uyumlu, eğlenceli) */
+function getRankTag(rank: number, totalPlayers: number): RankTag | null {
+  // Top 3 — özel tag'ler
+  if (rank === 1) return { label: 'Sahtekar Başı', icon: Crown, className: 'bg-amber-500/20 text-amber-300 ring-amber-500/40' }
+  if (rank === 2) return { label: 'Yardımcı Sahtekar', icon: Skull, className: 'bg-slate-400/20 text-slate-200 ring-slate-400/40' }
+  if (rank === 3) return { label: 'Şüpheli Üstat', icon: Eye, className: 'bg-amber-700/20 text-amber-600 ring-amber-700/40' }
+  // Top 10
+  if (rank <= 5) return { label: 'İpucu Avcısı', icon: Target, className: 'bg-rose-500/15 text-rose-300 ring-rose-500/30' }
+  if (rank <= 10) return { label: 'Kelime Ustası', icon: Zap, className: 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30' }
+  // Top 25
+  if (rank <= 25) return { label: 'Gözlemci', icon: Eye, className: 'bg-cyan-500/15 text-cyan-300 ring-cyan-500/30' }
+  // Top 50
+  if (rank <= 50) return { label: 'Çaylak Dedektif', icon: Shield, className: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30' }
+  // Geri kalan
+  if (totalPlayers > 0) return { label: 'Yeni Oyuncu', icon: Star, className: 'bg-slate-600/20 text-slate-400 ring-slate-600/30' }
+  return null
+}
+
+/** Galibiyet sayısına göre ekstra tag (eğlenceli) */
+function getWinTag(wins: number): RankTag | null {
+  if (wins >= 100) return { label: 'Efsane', icon: Flame, className: 'bg-orange-500/20 text-orange-300 ring-orange-500/40' }
+  if (wins >= 50) return { label: 'Hile Uzmanı', icon: Ghost, className: 'bg-purple-500/20 text-purple-300 ring-purple-500/40' }
+  if (wins >= 25) return { label: 'Düzenbaz', icon: Swords, className: 'bg-red-500/15 text-red-300 ring-red-500/30' }
+  if (wins >= 10) return { label: 'Kurnaz', icon: Diamond, className: 'bg-cyan-500/15 text-cyan-300 ring-cyan-500/30' }
+  return null
+}
+
+function TagBadge({ tag }: { tag: RankTag }) {
+  const Icon = tag.icon
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+      tag.className,
+    )}>
+      <Icon className="h-2.5 w-2.5" />
+      {tag.label}
+    </span>
+  )
+}
 
 export interface LeaderboardModalProps {
   open: boolean
@@ -148,7 +196,19 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Avatar avatarId={profile.avatar} frameId={profile.frame} size="xs" hideFrame />
-                  <span className="text-sm font-medium text-indigo-200">Sen</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-indigo-200">Sen</span>
+                    {myIndex >= 0 && (() => {
+                      const tag = getRankTag(myIndex + 1, entries.length)
+                      const winTag = getWinTag(stats.wins)
+                      return (tag || winTag) ? (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {tag && <TagBadge tag={tag} />}
+                          {winTag && <TagBadge tag={winTag} />}
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
                 </div>
                 <span className="text-sm font-semibold text-indigo-300 tabular-nums">
                   {myIndex >= 0 ? `#${myIndex + 1}` : '—'}
@@ -195,6 +255,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
                     )}
                   >
                     <span className="text-2xl">{icon}</span>
+                    {(() => { const tag = getRankTag(place, entries.length); return tag ? <TagBadge tag={tag} /> : null; })()}
                     <span className={cn(
                       'text-sm font-semibold truncate max-w-full',
                       isMe ? 'text-indigo-200' : 'text-slate-100',
@@ -213,7 +274,7 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
           {rest.length > 0 && (
             <div className="space-y-1.5">
               {rest.map((e, i) => (
-                <LeaderboardRow key={e.playerId ?? e.username} entry={e} rank={i + 4} isMe={e.playerId === profile.playerId || (!e.playerId && e.username === profile.username)} />
+                <LeaderboardRow key={e.playerId ?? e.username} entry={e} rank={i + 4} isMe={e.playerId === profile.playerId || (!e.playerId && e.username === profile.username)} totalPlayers={entries.length} />
               ))}
             </div>
           )}
@@ -251,7 +312,9 @@ export function LeaderboardModal({ open, onClose }: LeaderboardModalProps) {
 
 // ─── Leaderboard Row ─────────────────────────────────────────────────────────
 
-function LeaderboardRow({ entry, rank, isMe }: { entry: LeaderboardEntry; rank: number; isMe: boolean }) {
+function LeaderboardRow({ entry, rank, isMe, totalPlayers }: { entry: LeaderboardEntry; rank: number; isMe: boolean; totalPlayers: number }) {
+  const rankTag = getRankTag(rank, totalPlayers)
+  const winTag = getWinTag(entry.wins)
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -266,6 +329,13 @@ function LeaderboardRow({ entry, rank, isMe }: { entry: LeaderboardEntry; rank: 
     >
       <span className="w-6 text-center text-sm font-medium text-slate-500 tabular-nums">{rank}</span>
       <div className="flex-1 min-w-0">
+        {/* Tag'ler — ismin üstünde */}
+        {(rankTag || winTag) && (
+          <div className="mb-1 flex flex-wrap items-center gap-1">
+            {rankTag && <TagBadge tag={rankTag} />}
+            {winTag && <TagBadge tag={winTag} />}
+          </div>
+        )}
         <p className={cn('text-sm truncate', isMe ? 'font-semibold text-indigo-200' : 'text-slate-200')}>
           {entry.username}{isMe && ' (sen)'}
         </p>
