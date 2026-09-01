@@ -205,6 +205,22 @@ export function OnlineGame({
     return () => { void supabase.removeChannel(channel) }
   }, [roomId, toast, onExit])
 
+  // Realtime bildirimi kaçıran istemciler için oda state'ini kısa aralıklarla doğrula.
+  // Bu özellikle tüm oyuncular hazır olduktan sonraki REVEAL → PLAYING geçişinde önemlidir.
+  useEffect(() => {
+    if (!roomId || room?.state !== 'REVEAL') return
+    let cancelled = false
+    const syncRoomState = async () => {
+      const { data } = await supabase.from('rooms').select('state').eq('id', roomId).maybeSingle()
+      if (!cancelled && data?.state && data.state !== 'REVEAL') {
+        setRoom((current) => current ? { ...current, state: data.state as RoomData['state'] } : current)
+      }
+    }
+    const interval = window.setInterval(() => { void syncRoomState() }, 1000)
+    void syncRoomState()
+    return () => { cancelled = true; window.clearInterval(interval) }
+  }, [roomId, room?.state])
+
   // ─── Timer ──────────────────────────────────────────────────────────────
   const turnTimeLimit = room?.settings.turnTimeLimit ?? 30
   const timerKey = `${room?.turn_index}-${room?.round}`
@@ -815,6 +831,7 @@ function RevealPhase({
   roomId: string
   onLeave: () => void
 }) {
+  const toast = useToast()
   const [revealed, setRevealed] = useState(false)
   const [iAmReady, setIAmReady] = useState(false)
 
@@ -830,18 +847,61 @@ function RevealPhase({
   // Host tüm oyuncular hazır olunca PLAYING'e geç
   useEffect(() => {
     if (!isHost || !allRevealed) return
-    void supabase.from('rooms').update({ state: 'PLAYING' }).eq('id', roomId)
-  }, [isHost, allRevealed, roomId])
+    let cancelled = false
+    const promoteRoom = async () => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .update({ state: 'PLAYING' })
+        .eq('id', roomId)
+        .eq('state', 'REVEAL')
+        .select('state')
+        .maybeSingle()
+      if (!cancelled && error) toast.error('Oyun başlatılamadı. Lütfen tekrar dene.')
+      return data
+    }
+
+    void promoteRoom()
+    // Realtime mesajı kaçırılırsa geçişi garanti etmek için kısa polling.
+    const retry = window.setInterval(() => {
+      void supabase.from('rooms').select('state').eq('id', roomId).maybeSingle().then(({ data, error }) => {
+        if (cancelled || error || data?.state !== 'REVEAL') return
+        void promoteRoom()
+      })
+    }, 1000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(retry)
+    }
+  }, [isHost, allRevealed, roomId, toast])
 
   // "Hazırım" butonu
   const markReady = async () => {
     setIAmReady(true)
     // Gerçek oyuncu ise DB'ye yaz
     if (!myUserId.startsWith('bot-')) {
-      await supabase.from('room_players')
+      const { error } = await supabase.from('room_players')
         .update({ is_ready: true })
         .eq('room_id', roomId)
         .eq('user_id', myUserId)
+      if (error) {
+        toast.error('Hazır durumun kaydedilemedi. Tekrar dene.')
+        setIAmReady(false)
+        return
+      }
+    }
+
+    // Realtime bildirimi gecikirse bile host doğrudan son durumu kontrol eder.
+    if (isHost) {
+      const { data: readyPlayers } = await supabase
+        .from('room_players')
+        .select('user_id, is_ready, is_bot')
+        .eq('room_id', roomId)
+      const everyoneReady = (readyPlayers ?? []).length > 0 && (readyPlayers ?? []).every((player) => player.is_bot || player.is_ready)
+      if (everyoneReady) {
+        const { error } = await supabase.from('rooms').update({ state: 'PLAYING' }).eq('id', roomId)
+        if (error) toast.error('Oyun başlatılamadı. Host tekrar denesin.')
+      }
     }
   }
 
