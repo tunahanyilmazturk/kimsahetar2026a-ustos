@@ -15,7 +15,7 @@ import { questsApi } from './lib/questsApi'
 import { achievementsApi } from './lib/achievementsApi'
 import { WORD_POOL } from './constants'
 import { pickWord, pickImpostor } from './utils/wordPool'
-import { countVotes, isGuessCorrect, isValidHint } from './utils/gameUtils'
+import { countVotes, hintSimilarity, isGuessCorrect, isTooSimilarHint, isValidHint } from './utils/gameUtils'
 import { cn } from './utils/cn'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -318,6 +318,10 @@ export function OnlineGame({
       toast.warning('Geçersiz ipucu — kelimeyi içeremez veya çok kısa')
       return
     }
+    if (isTooSimilarHint(text, hintsThisRound.map((hint) => hint.text))) {
+      toast.warning('Bu ipucu önceki bir ipucuna çok benziyor. Farklı bir açıdan anlatmayı dene.')
+      return
+    }
 
     const { error: hintError } = await supabase.from('room_chat').insert({
       room_id: roomId,
@@ -395,23 +399,48 @@ export function OnlineGame({
     const word = room.current_word ?? ''
     const category = room.current_category ?? 'bu kategori'
     const entry = WORD_POOL.find((item) => item.word.toLocaleLowerCase('tr-TR') === word.toLocaleLowerCase('tr-TR'))
+    const botIsImpostor = bot.user_id === room.impostor_id
     const usedHints = new Set(chat.filter((message) => message.message_type === 'hint').map((message) => message.text.toLocaleLowerCase('tr-TR')))
+    const clue = entry?.hint ?? `${category} ile ilgili belirgin bir şey`
+    const clueText = clue.charAt(0).toLocaleLowerCase('tr-TR') + clue.slice(1)
+    const length = word.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').length || 5
+    const previousHints = chat.filter((message) => message.message_type === 'hint')
+    const lastHint = previousHints.at(-1)
     const broadHints = [
       `${category} içinde karşına çıkabilir`,
       `Günlük hayatta sıkça görülür`,
-      `${word.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').length || 5} harfli bir kelime`,
+      `${length} harfli bir kelime`,
       'Bununla ilgili bir deneyimin olabilir',
+      `Bir ${category.toLocaleLowerCase('tr-TR')} örneği gibi düşün`,
+      'Yakından bakınca tanıdık gelecektir',
     ]
     const preciseHints = [
-      entry?.hint ?? `${category} ile ilgili belirgin bir şey`,
-      `${category} deyince akla gelenlerden biri`,
-      'İşlevini veya nerede kullanıldığını düşün',
-      `${word.length} karakterli, tanıdık bir kelime`,
+      clue,
+      `Bunu ${clueText} olarak düşünebilirsin`,
+      `${category} içinde ${clueText}`,
+      `Benim çağrışımım: ${clueText}`,
+      `İşlevi açısından ${clueText}`,
+      `${length} karakterli ve ${clueText}`,
+      `Bu kelime ${clueText} bir şeyi anlatıyor`,
+      lastHint ? `${lastHint.player_name}'in fikrine yakın ama ben ${clueText} diyorum` : `İlk aklıma gelen ${clueText}`,
     ]
-    const hints = bot.bot_difficulty === 'EXPERT' ? preciseHints : bot.bot_difficulty === 'EASY' ? broadHints : [...preciseHints.slice(0, 2), ...broadHints.slice(0, 2)]
+    // Sahtekar bot kelimeyi bilmez; kelimeye özel ipucunu kullanması haksız olur.
+    const impostorHints = [
+      `${category} hakkında genel bir şey`,
+      'Bunu günlük hayatta görebilirsin',
+      'Çok uzak olmayan bir konu',
+      'Aklına gelen ilk şeylerden biri',
+    ]
+    const hints = botIsImpostor
+      ? impostorHints
+      : bot.bot_difficulty === 'EXPERT' ? preciseHints : bot.bot_difficulty === 'EASY' ? broadHints : [...preciseHints.slice(0, 2), ...broadHints.slice(0, 2)]
+    const previousHintTexts = previousHints.map((message) => message.text)
+    // Önce aynı cümleyi engelle; havuz tükense bile güvenli bir varyasyon seç.
     const availableHints = hints.filter((candidate) => !usedHints.has(candidate.toLocaleLowerCase('tr-TR')))
-    const pool = availableHints.length > 0 ? availableHints : hints
-    const hint = pool[(room.round + room.turn_index + bot.username.length) % pool.length]!
+    const distinctHints = availableHints.filter((candidate) => !isTooSimilarHint(candidate, previousHintTexts))
+    const pool = distinctHints.length > 0 ? distinctHints : availableHints.length > 0 ? availableHints : hints
+    const botSeed = Array.from(bot.username).reduce((sum, character) => sum + character.charCodeAt(0), 0)
+    const hint = pool[(room.round * 7 + room.turn_index * 11 + botSeed) % pool.length]!
     const timer = window.setTimeout(() => {
       void (async () => {
         const { error } = await supabase.from('room_chat').insert({ room_id: roomId, user_id: myUserId, player_name: bot.username, text: hint, message_type: 'hint' })
@@ -485,19 +514,28 @@ export function OnlineGame({
     if (!room || !isHost) return
     const { topVotedId } = countVotes(votes)
     const caught = topVotedId === room.impostor_id
-    const winner = caught ? 'PLAYERS' : 'IMPOSTOR'
+    const impostor = players.find((player) => player.user_id === room.impostor_id)
+    const citizenHints = chat
+      .filter((message) => message.message_type === 'hint' && message.player_name !== impostor?.username)
+      .map((message) => message.text)
+    const botGuess = caught && impostor?.is_bot
+      ? inferBotWord(room.current_category, citizenHints, impostor.bot_difficulty)
+      : null
+    const botGuessedCorrectly = !!botGuess && isGuessCorrect(botGuess, room.current_word ?? '')
+    const winner = botGuessedCorrectly ? 'IMPOSTOR' : caught ? 'PLAYERS' : 'IMPOSTOR'
 
     await supabase.from('rooms').update({
       state: 'FINISHED',
       voted_impostor_id: topVotedId,
       winner,
+      impostor_guess: botGuess,
     }).eq('id', roomId)
 
     await supabase.from('room_chat').insert({
       room_id: roomId,
       user_id: myUserId,
       player_name: 'Sistem',
-      text: caught ? 'Sahtekar yakalandı!' : 'Sahtekar kaçtı!',
+      text: botGuessedCorrectly ? `Sahtekar kelimeyi tahmin etti: ${botGuess}` : caught ? 'Sahtekar yakalandı!' : 'Sahtekar kaçtı!',
       message_type: 'system',
     })
   }
@@ -512,8 +550,12 @@ export function OnlineGame({
         for (const bot of pending) {
           const candidates = players.filter((p) => p.user_id !== bot.user_id)
           const scores = candidates.map((candidate) => {
-            const hint = chat.find((m) => m.user_id === candidate.user_id && m.message_type === 'hint')?.text ?? ''
-            const suspicion = (hint.length <= 4 ? 3 : 0) + (hint.includes('şey') || hint.includes('bir şey') ? 2 : 0)
+            const candidateHints = chat.filter((message) => message.message_type === 'hint' && message.player_name === candidate.username).map((message) => message.text)
+            const hint = candidateHints.join(' ')
+            const repeated = candidateHints.length > 1 && new Set(candidateHints.map((value) => value.toLocaleLowerCase('tr-TR'))).size < candidateHints.length
+            const generic = ['bir şey', 'genel', 'günlük hayatta', 'aklına gelen'].some((term) => hint.toLocaleLowerCase('tr-TR').includes(term))
+            const similarities = candidateHints.flatMap((value, index) => candidateHints.slice(index + 1).map((other) => hintSimilarity(value, other)))
+            const suspicion = (hint.length <= 12 ? 3 : 0) + (generic ? 2 : 0) + (repeated ? 2 : 0) + (similarities.some((score) => score > 0.72) ? 1 : 0)
             return { id: candidate.user_id, suspicion }
           }).sort((a, b) => b.suspicion - a.suspicion)
           const target = scores[0]?.id
@@ -545,6 +587,27 @@ export function OnlineGame({
       winner,
     }).eq('id', roomId)
 
+    setGuessText('')
+  }
+
+  // Sahtekar, kendi sırası geldiğinde Rolüm sekmesinden kelimeyi deneyebilir.
+  const submitRoleGuess = async () => {
+    if (!room || !isImpostor || !isMyTurn) return
+    const guess = guessText.trim()
+    if (!guess) return
+    if (!isGuessCorrect(guess, room.current_word ?? '')) {
+      toast.error('Tahmin yanlış. Sıran devam ediyor, yeni bir ipucu verebilirsin.')
+      setGuessText('')
+      return
+    }
+    const { error } = await supabase.from('rooms').update({
+      state: 'FINISHED',
+      winner: 'IMPOSTOR',
+      impostor_guess: guess,
+      voted_impostor_id: room.impostor_id,
+    }).eq('id', roomId).eq('state', 'PLAYING')
+    if (error) toast.error('Tahmin kaydedilemedi. Tekrar dene.')
+    else toast.success('Doğru tahmin! Sahtekar kazandı!')
     setGuessText('')
   }
 
@@ -718,6 +781,9 @@ export function OnlineGame({
         startVotes={votes}
         castStartVote={castStartVote}
         requestVoteStart={requestVoteStart}
+        guessText={guessText}
+        setGuessText={setGuessText}
+        submitRoleGuess={submitRoleGuess}
         roomId={roomId}
         onLeave={leaveRoom}
       />
@@ -1167,6 +1233,38 @@ function RevealPhase({
 
 type PlayTab = 'hints' | 'chat' | 'role' | 'vote' | 'settings'
 
+const PLAYER_MESSAGE_COLORS = [
+  'text-cyan-300 ring-cyan-400/30 bg-cyan-500/10',
+  'text-violet-300 ring-violet-400/30 bg-violet-500/10',
+  'text-amber-300 ring-amber-400/30 bg-amber-500/10',
+  'text-emerald-300 ring-emerald-400/30 bg-emerald-500/10',
+  'text-pink-300 ring-pink-400/30 bg-pink-500/10',
+  'text-sky-300 ring-sky-400/30 bg-sky-500/10',
+]
+
+function playerMessageColor(playerId: string) {
+  let hash = 0
+  for (let i = 0; i < playerId.length; i++) hash = (hash * 31 + playerId.charCodeAt(i)) | 0
+  return PLAYER_MESSAGE_COLORS[Math.abs(hash) % PLAYER_MESSAGE_COLORS.length]!
+}
+
+function inferBotWord(category: string | null, hints: string[], difficulty: string | null) {
+  const candidates = WORD_POOL.filter((entry) => !category || entry.category === category)
+  const scored = candidates.map((entry) => {
+    const scores = hints.map((hint) => hintSimilarity(entry.hint, hint))
+    const best = Math.max(...scores, 0)
+    const supporting = scores.filter((score) => score >= 0.45).length
+    return { word: entry.word, score: best + supporting * 0.18 }
+  }).sort((a, b) => b.score - a.score)
+  // Uzman bot birden fazla vatandaş ipucuyla desteklenen adayı tercih eder.
+  // Daha düşük zorluklarda daima en güçlü adayı kullanmak yerine küçük bir
+  // belirsizlik bırakılır; böylece her oyun aynı sonucu üretmez.
+  const top = scored[0]
+  if (!top) return null
+  if (difficulty === 'EASY' && scored[1] && scored[1].score >= top.score - 0.08) return scored[1].word
+  return top.word
+}
+
 function PlayingPhase({
   room,
   players,
@@ -1184,6 +1282,9 @@ function PlayingPhase({
   startVotes,
   castStartVote,
   requestVoteStart,
+  guessText,
+  setGuessText,
+  submitRoleGuess,
   roomId,
   onLeave,
 }: {
@@ -1203,6 +1304,9 @@ function PlayingPhase({
   startVotes: Record<string, string>
   castStartVote: (choice: 'yes' | 'no') => void
   requestVoteStart: () => void
+  guessText: string
+  setGuessText: (value: string) => void
+  submitRoleGuess: () => void
   roomId: string
   onLeave: () => void
 }) {
@@ -1246,6 +1350,7 @@ function PlayingPhase({
     if (error) toast.error(error.code === '23505' ? 'Arkadaşlık isteği zaten gönderildi' : 'Arkadaşlık isteği gönderilemedi')
     else { setFriendRequests((current) => new Set(current).add(player.user_id)); toast.success(`${player.username} arkadaşlık isteği gönderildi`) }
   }
+
 
   const tabs: { id: PlayTab; label: string; icon: typeof Send }[] = [
     { id: 'hints', label: 'İpuçları', icon: Sparkles },
@@ -1303,10 +1408,22 @@ function PlayingPhase({
                   <p className="py-8 text-center text-xs text-slate-500">İpuçları burada görünecek...</p>
                 ) : (
                   hintsList.map((msg) => (
-                    <div key={msg.id} className={cn('rounded-lg px-3 py-2 text-sm', msg.message_type === 'system' ? 'bg-slate-800/50 text-center text-xs text-slate-500' : 'bg-slate-800')}>
-                      {msg.message_type === 'hint' && <span className="font-semibold text-indigo-300">{msg.player_name}: </span>}
-                      {msg.text}
-                    </div>
+                    msg.message_type === 'system' ? (
+                      <div key={msg.id} className="rounded-lg bg-slate-800/50 px-3 py-2 text-center text-xs text-slate-500">{msg.text}</div>
+                    ) : (() => {
+                      const messagePlayer = players.find((player) => player.username === msg.player_name) ?? players.find((player) => player.user_id === msg.user_id)
+                      const isMine = messagePlayer?.user_id === myUserId && !messagePlayer.is_bot
+                      const color = playerMessageColor(messagePlayer?.user_id ?? msg.player_name)
+                      return (
+                        <div key={msg.id} className={cn('flex items-end gap-2', isMine && 'flex-row-reverse')}>
+                          <Avatar avatarId={messagePlayer?.avatar ?? 'avatar_default'} size="sm" hideFrame />
+                          <div className={cn('max-w-[78%] rounded-2xl px-3 py-2 text-sm ring-1', color, isMine ? 'rounded-br-sm' : 'rounded-bl-sm')}>
+                            <p className="mb-0.5 text-[10px] font-bold opacity-80">{isMine ? 'Sen' : msg.player_name}</p>
+                            <p className="break-words text-slate-100">{msg.text}</p>
+                          </div>
+                        </div>
+                      )
+                    })()
                   ))
                 )}
               </div>
@@ -1377,6 +1494,34 @@ function PlayingPhase({
           {tab === 'role' && (
             <div className="flex h-full flex-col items-center justify-start px-3 py-3">
               <RoleCard isImpostor={isImpostor} word={room.current_word ?? ''} category={room.current_category ?? ''} />
+              {isImpostor && (
+                <div className="mt-3 w-full max-w-sm rounded-2xl bg-rose-500/10 p-4 ring-1 ring-rose-500/30">
+                  <p className="text-sm font-semibold text-rose-200">Kelimeyi tahmin et</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Sadece kendi sıranda deneyebilirsin. Doğru tahmin edersen anında kazanırsın.
+                  </p>
+                  {isMyTurn ? (
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        value={guessText}
+                        onChange={(event) => setGuessText(event.target.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && submitRoleGuess()}
+                        placeholder="Tahminin..."
+                        maxLength={40}
+                        aria-label="Rolüm kelime tahmini"
+                        className="min-w-0 flex-1 rounded-xl bg-slate-900 px-3 py-2.5 text-sm ring-1 ring-rose-500/30 focus:outline-none focus:ring-rose-400"
+                      />
+                      <Button variant="danger" onClick={submitRoleGuess} disabled={!guessText.trim()}>
+                        Tahmin Et
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="mt-3 rounded-lg bg-slate-900/60 px-3 py-2 text-center text-xs text-slate-500">
+                      Sıran geldiğinde tahmin alanı açılacak.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1476,19 +1621,20 @@ function PlayingPhase({
       <div className="shrink-0 border-t border-indigo-400/15 bg-slate-900 px-2 py-2 shadow-[0_-8px_24px_rgba(2,6,23,0.35)]">
         <div className="mx-auto flex w-full max-w-md items-center justify-around">
           {tabs.map((t) => {
-            const Icon = t.icon
             return (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors',
+                  'group relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors',
                   tab === t.id ? 'bg-indigo-500/15 text-indigo-200' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300',
                 )}
               >
                 {tab === t.id && <span className="absolute -top-2 h-1 w-8 rounded-full bg-linear-to-r from-cyan-400 to-indigo-400" />}
-                <Icon className="h-4 w-4" />
+                <span className={cn('relative flex h-8 w-8 items-center justify-center rounded-xl transition-transform', tab === t.id ? 'scale-110 bg-slate-950/30 shadow-[0_0_16px_rgba(99,102,241,0.35)]' : 'opacity-70 group-hover:opacity-100')}>
+                  <img src={`/nav-icons/${t.id}.png`} alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+                </span>
                 {t.label}
               </button>
             )

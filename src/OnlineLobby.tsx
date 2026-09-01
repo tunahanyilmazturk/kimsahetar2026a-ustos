@@ -943,41 +943,57 @@ export function OnlineLobby({
   // ODA OLUŞTURMA / KATILMA GÖRÜNÜMÜ
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-svh w-full bg-slate-950 px-4 py-6 text-slate-100">
+    <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 px-4 py-5 text-slate-100">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-indigo-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 top-40 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
       <div className="mx-auto w-full max-w-md">
-        <button type="button" onClick={onExit} className="mb-8 flex min-h-11 items-center gap-2 text-slate-400 hover:text-white">
+        <button type="button" onClick={onExit} className="relative mb-5 flex min-h-10 items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white">
           <ArrowLeft className="h-5 w-5" /> Ana Menü
         </button>
 
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Online oyun</p>
-          <h1 className="mt-2 text-3xl font-bold">Ekibini topla</h1>
-          <p className="mt-2 text-sm text-slate-400">Arkadaşlarını davet et, odayı kur ve gizli rol oyununa başla.</p>
+        <div className="relative mb-4 overflow-hidden rounded-2xl border border-indigo-400/25 bg-linear-to-br from-indigo-500/20 via-slate-900/90 to-cyan-500/10 p-3.5 shadow-xl shadow-indigo-950/30">
+          <div className="absolute -right-5 -top-7 text-[5rem] leading-none opacity-10">🎭</div>
+          <div className="relative">
+            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-300 ring-1 ring-cyan-300/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> Online merkez
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white">Ekibini topla.</h1>
+            <p className="mt-1 max-w-sm text-xs leading-4 text-slate-300">Arkadaşlarını davet et, gizli rolleri paylaş ve sahtekarı yakala.</p>
+            <div className="mt-2.5 flex max-w-sm gap-2 text-center">
+              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-cyan-300">3+</span><span className="ml-1 text-[9px] text-slate-400">oyuncu</span></div>
+              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-violet-300">6</span><span className="ml-1 text-[9px] text-slate-400">haneli kod</span></div>
+              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-amber-300">1</span><span className="ml-1 text-[9px] text-slate-400">sahtekar</span></div>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <span className="h-px flex-1 bg-slate-800" /> Hızlı başlangıç <span className="h-px flex-1 bg-slate-800" />
+        </div>
+
+        <div className="space-y-3 pb-6">
           {/* Oda oluştur */}
-          <section className="rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-4">
+          <section className="group rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-4 shadow-lg shadow-indigo-950/20 transition-colors hover:border-indigo-300/50">
             <div className="flex items-center gap-3">
-              <Plus className="h-5 w-5 text-indigo-300" />
-              <div>
-                <h2 className="font-semibold">Yeni oda kur</h2>
-                <p className="text-xs text-slate-400">Bir davet kodu oluştur.</p>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-400/15 text-indigo-200 ring-1 ring-indigo-300/25"><Plus className="h-6 w-6" /></div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-white">Yeni oda kur</h2>
+                <p className="text-xs text-slate-400">Kendi kurallarını seç, arkadaşlarını çağır.</p>
               </div>
             </div>
-            <Button fullWidth className="mt-4" onClick={createRoom} disabled={loading}>
+            <Button fullWidth className="mt-4 shadow-lg shadow-indigo-900/30" onClick={createRoom} disabled={loading}>
               <Plus className="h-4 w-4" />
               {loading ? 'Oluşturuluyor...' : 'Oda Oluştur'}
             </Button>
           </section>
 
           {/* Odaya katıl */}
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+          <section className="rounded-2xl border border-cyan-400/20 bg-slate-900/80 p-4">
             <div className="flex items-center gap-3">
-              <Link className="h-5 w-5 text-cyan-300" />
-              <div>
-                <h2 className="font-semibold">Odaya katıl</h2>
-                <p className="text-xs text-slate-400">Arkadaşının kodunu gir.</p>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-300 ring-1 ring-cyan-300/20"><Link className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-white">Davet koduyla katıl</h2>
+                <p className="text-xs text-slate-400">Arkadaşının 6 haneli kodunu gir.</p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
@@ -997,12 +1013,12 @@ export function OnlineLobby({
           </section>
 
           {/* Aktif odalar */}
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+          <section className="rounded-2xl border border-emerald-400/20 bg-slate-900/80 p-4">
             <div className="flex items-center gap-3">
-              <Search className="h-5 w-5 text-emerald-300" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/20"><Search className="h-5 w-5" /></div>
               <div className="flex-1">
-                <h2 className="font-semibold">Aktif odalar</h2>
-                <p className="text-xs text-slate-400">Açık odalara göz at.</p>
+                <h2 className="font-bold text-white">Açık odaları keşfet</h2>
+                <p className="text-xs text-slate-400">Hazır ekiplerin arasına katıl.</p>
               </div>
               <button
                 type="button"
@@ -1015,19 +1031,19 @@ export function OnlineLobby({
           </section>
 
           {/* Nasıl oynanır */}
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+          <section className="rounded-2xl border border-violet-400/20 bg-slate-900/80 p-4">
             <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-emerald-300" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-400/10 text-violet-300 ring-1 ring-violet-300/20"><Users className="h-5 w-5" /></div>
               <div>
-                <h2 className="font-semibold">Nasıl oynanır?</h2>
-                <p className="text-xs text-slate-400">Online oyun akışı.</p>
+                <h2 className="font-bold text-white">Bir tur nasıl ilerler?</h2>
+                <p className="text-xs text-slate-400">Kısa, gizli ve bol şüpheli.</p>
               </div>
             </div>
-            <ol className="mt-4 space-y-2 text-xs text-slate-400">
-              <li className="flex gap-2"><span className="font-bold text-indigo-300">1.</span> Oda oluştur veya arkadaşının koduyla katıl.</li>
-              <li className="flex gap-2"><span className="font-bold text-indigo-300">2.</span> Herkes hazır olduğunda host oyunu başlatır.</li>
-              <li className="flex gap-2"><span className="font-bold text-indigo-300">3.</span> Her oyuncu kendi cihazında rolünü görür.</li>
-              <li className="flex gap-2"><span className="font-bold text-indigo-300">4.</span> İpuçları verin, oylayın ve sahtekarı yakalayın!</li>
+            <ol className="mt-4 grid gap-2 text-xs text-slate-300">
+              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 font-bold text-indigo-300">1</span> Odayı kur veya davet koduyla katıl.</li>
+              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-500/20 font-bold text-cyan-300">2</span> Gizli rolünü öğren ve doğal davran.</li>
+              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 font-bold text-amber-300">3</span> İpucunu ver, şüphelileri takip et.</li>
+              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 font-bold text-rose-300">4</span> Oyla; sahtekarı yakala veya kelimeyi tahmin et.</li>
             </ol>
           </section>
         </div>

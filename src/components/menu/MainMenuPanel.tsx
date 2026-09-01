@@ -221,32 +221,42 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
         <motion.div
           variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
         >
-          <Button size="lg" fullWidth onClick={onPlay} className="menu-primary-button justify-start px-5">
-            <Gamepad2 className="h-5 w-5" />
+          <Button size="lg" fullWidth onClick={onPlay} className="group relative overflow-hidden menu-primary-button justify-start px-5">
+            <img src="/menu-icons/offline-play.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-3 -top-7 h-28 w-28 object-contain opacity-25 transition-transform duration-300 group-hover:scale-110" />
+            <Gamepad2 className="relative z-10 h-5 w-5" />
             <span className="flex-1 text-left"><span className="block">Oyna</span><span className="block text-xs font-medium text-white/70">Aynı cihazda yeni oyun başlat</span></span>
             <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] uppercase tracking-wider">Offline</span>
           </Button>
         </motion.div>
         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-          <Button size="lg" variant="secondary" fullWidth onClick={onOnline} className="border border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/20"><Users className="h-5 w-5 text-cyan-300" /><span className="flex-1 text-left"><span className="block">Online Oyna</span><span className="block text-xs font-medium text-slate-400">Arkadaşlarınla aynı odaya katıl</span></span><span className="rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan-300">Beta</span></Button>
+          <Button size="lg" variant="secondary" fullWidth onClick={onOnline} className="group relative overflow-hidden border border-cyan-400/30 bg-linear-to-r from-cyan-500/15 via-indigo-500/15 to-fuchsia-500/10 shadow-lg shadow-cyan-950/20 hover:border-cyan-300/50 hover:bg-cyan-500/20">
+            <img src="/online-play.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-2 -top-8 h-28 w-28 object-contain opacity-35 transition-transform duration-300 group-hover:scale-110" />
+            <span className="pointer-events-none absolute inset-y-0 right-0 w-2/3 bg-linear-to-l from-indigo-950/10 to-transparent" />
+            <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-400/15 ring-1 ring-cyan-300/25"><Users className="h-5 w-5 text-cyan-300" /></span>
+            <span className="relative z-10 flex-1 text-left"><span className="block">Online Oyna</span><span className="block text-xs font-medium text-slate-400">Arkadaşlarınla aynı odaya katıl</span></span>
+            <span className="relative z-10 rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan-300">Beta</span>
+          </Button>
         </motion.div>
         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-          <Button size="lg" variant="secondary" fullWidth onClick={() => setLeaderboardOpen(true)}>
-            <Trophy className="h-5 w-5 text-amber-400" />
+          <Button size="lg" variant="secondary" fullWidth onClick={() => setLeaderboardOpen(true)} className="group relative overflow-hidden border border-amber-400/15 hover:border-amber-300/35">
+            <img src="/menu-icons/leaderboard.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-3 -top-8 h-28 w-28 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+            <Trophy className="relative z-10 h-5 w-5 text-amber-400" />
             Liderlik Tablosu
           </Button>
         </motion.div>
 
         <div className="grid grid-cols-2 gap-3">
           <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Button size="md" variant="secondary" fullWidth onClick={() => setProfileOpen(true)}>
-              <User className="h-4 w-4" />
+            <Button size="md" variant="secondary" fullWidth onClick={() => setProfileOpen(true)} className="group relative overflow-hidden">
+              <img src="/menu-icons/market.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+              <User className="relative z-10 h-4 w-4" />
               Market
             </Button>
           </motion.div>
           <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Button size="md" variant="secondary" fullWidth onClick={() => setAchievementsOpen(true)}>
-              <Award className="h-4 w-4" />
+            <Button size="md" variant="secondary" fullWidth onClick={() => setAchievementsOpen(true)} className="group relative overflow-hidden">
+              <img src="/menu-icons/achievements.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-5 h-20 w-20 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+              <Award className="relative z-10 h-4 w-4" />
               Başarımlar
             </Button>
           </motion.div>
@@ -258,8 +268,10 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
             variant="secondary"
             fullWidth
             onClick={() => setQuestsOpen(true)}
+            className="group relative overflow-hidden"
           >
-            <CalendarCheck className="h-4 w-4" />
+            <img src="/menu-icons/daily-quests.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-6 h-24 w-24 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+            <CalendarCheck className="relative z-10 h-4 w-4" />
             Günlük Görevler
             {claimableQuests > 0 && (
               <span className="ml-1 inline-flex items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -270,15 +282,17 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
         </motion.div>
 
         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-          <Button size="md" variant="secondary" fullWidth onClick={() => setSettingsOpen(true)}>
-            <SettingsIcon className="h-4 w-4" />
+          <Button size="md" variant="secondary" fullWidth onClick={() => setSettingsOpen(true)} className="group relative overflow-hidden">
+            <img src="/menu-icons/settings.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-6 h-24 w-24 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+            <SettingsIcon className="relative z-10 h-4 w-4" />
             Ayarlar
           </Button>
         </motion.div>
 
         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-          <Button size="md" variant="secondary" fullWidth onClick={() => setSocialOpen(true)}>
-            <Users className="h-4 w-4 text-cyan-300" />
+          <Button size="md" variant="secondary" fullWidth onClick={() => setSocialOpen(true)} className="group relative overflow-hidden">
+            <img src="/menu-icons/social.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-6 h-24 w-24 object-contain opacity-20 transition-transform duration-300 group-hover:scale-110" />
+            <Users className="relative z-10 h-4 w-4 text-cyan-300" />
             Sosyal
             {(pendingRequests + pendingRoomInvites) > 0 && (
               <span className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -295,10 +309,11 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
               await authApi.logout()
               window.location.reload()
             }}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-800/40 px-4 py-2.5 text-sm font-medium text-rose-300 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-500/10 hover:ring-rose-500/40"
+            className="group relative flex min-h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-slate-800/40 px-4 py-2.5 text-sm font-medium text-rose-300 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-500/10 hover:ring-rose-500/40"
           >
-            <LogOut className="h-4 w-4" />
-            Çıkış Yap
+            <img src="/menu-icons/logout.png" alt="" aria-hidden="true" className="pointer-events-none absolute -right-4 -top-7 h-24 w-24 object-contain opacity-15 transition-transform duration-300 group-hover:scale-110" />
+            <LogOut className="relative z-10 h-4 w-4" />
+            <span className="relative z-10">Çıkış Yap</span>
           </button>
         </motion.div>
 
