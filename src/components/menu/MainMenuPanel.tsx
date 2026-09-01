@@ -106,8 +106,8 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
   return (
     <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center px-4 pb-24 pt-8 sm:pb-12 sm:py-12">
       <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-72 max-w-3xl opacity-25" style={{ backgroundImage: "url('/role-duel.png')", backgroundPosition: 'center 18%', backgroundSize: 'cover', maskImage: 'linear-gradient(to bottom, black, transparent)' }} />
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-purple-600/15 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-purple-600/15" />
+      <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-cyan-500/10" />
       {/* ─── Başlık ────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

@@ -188,7 +188,8 @@ export function OnlineGame({
       )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_chat', filter: `room_id=eq.${roomId}` },
         (payload) => {
-          setChat((prev) => [...prev, payload.new as ChatMsg])
+          const newMessage = payload.new as ChatMsg
+          setChat((prev) => prev.some((message) => message.id === newMessage.id) ? prev : [...prev, newMessage])
         },
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'room_votes', filter: `room_id=eq.${roomId}` },
@@ -267,7 +268,7 @@ export function OnlineGame({
       winner: null,
       voted_impostor_id: null,
       impostor_guess: null,
-      settings: { ...room.settings, turnTimeLimit: 30, roundsBeforeVoting: 2 },
+      settings: room.settings,
     }).eq('id', roomId)
 
     // Eski chat ve oyları temizle
@@ -293,7 +294,7 @@ export function OnlineGame({
       return
     }
 
-    await supabase.from('room_chat').insert({
+    const { error: hintError } = await supabase.from('room_chat').insert({
       room_id: roomId,
       user_id: myUserId,
       player_name: players.find((p) => p.user_id === myUserId)?.username ?? 'Oyuncu',
@@ -301,6 +302,10 @@ export function OnlineGame({
       message_type: 'hint',
     })
 
+    if (hintError) {
+      toast.error('İpucu gönderilemedi. Tekrar dene.')
+      return
+    }
     setHintText('')
     // Host turn'ü ilerletir
     if (isHost) {
@@ -311,7 +316,11 @@ export function OnlineGame({
   // ─── Pass ───────────────────────────────────────────────────────────────
   const passTurn = async () => {
     if (!isMyTurn) return
-    await supabase.from('room_players').update({ passed: true }).eq('room_id', roomId).eq('user_id', myUserId)
+    const { error: passError } = await supabase.from('room_players').update({ passed: true }).eq('room_id', roomId).eq('user_id', myUserId)
+    if (passError) {
+      toast.error('Pas işlemi başarısız oldu')
+      return
+    }
     await supabase.from('room_chat').insert({
       room_id: roomId,
       user_id: myUserId,
@@ -362,11 +371,12 @@ export function OnlineGame({
   // ─── Vote ───────────────────────────────────────────────────────────────
   const vote = async (targetId: string) => {
     if (!myUserId || myVote) return
-    await supabase.from('room_votes').upsert({
+    const { error } = await supabase.from('room_votes').upsert({
       room_id: roomId,
       voter_id: myUserId,
       target_id: targetId,
     })
+    if (error) toast.error('Oyunuz kaydedilemedi. Tekrar dene.')
   }
 
   // ─── Host: Finish voting ────────────────────────────────────────────────
@@ -846,7 +856,7 @@ function RevealPhase({
       {revealed && (
         <>
           <div
-            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 blur-[1px]"
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30"
             style={{
               backgroundImage: "url('/role-duel.png')",
               backgroundPosition: isImpostor ? 'left center' : 'right center',

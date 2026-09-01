@@ -40,7 +40,7 @@ export function RevealScreen({
       {revealed && (
         <>
           <div
-            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 blur-[1px]"
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30"
             style={{
               backgroundImage: "url('/role-duel.png')",
               backgroundPosition: isImpostor ? 'left center' : 'right center',

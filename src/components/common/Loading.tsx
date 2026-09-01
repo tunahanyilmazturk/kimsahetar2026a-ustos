@@ -11,7 +11,7 @@ export function Loading({ label, className }: { label?: string; className?: stri
 
 export function FullScreenLoading({ label }: { label?: string }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950">
       <span className="h-12 w-12 rounded-full border-4 border-slate-800 border-t-indigo-400 animate-spin" />
       {label && <p className="mt-4 text-slate-300">{label}</p>}
     </div>
