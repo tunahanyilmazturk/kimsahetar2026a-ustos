@@ -238,14 +238,16 @@ alter table public.room_chat add column if not exists message_type text not null
 
 create table if not exists public.room_votes (
   room_id uuid not null references public.rooms(id) on delete cascade,
-  voter_id text not null,  -- text: gerçek user UUID veya bot ID
-  target_id text not null,  -- text: gerçek user UUID veya bot ID
+  voter_id text not null,  -- text: gerçek user UUID veya bot ID (FK yok)
+  target_id text not null,  -- text: gerçek user UUID veya bot ID (FK yok)
   created_at timestamptz not null default now(),
   primary key (room_id, voter_id)
 );
 
--- Eski veritabanında UUID tipindeyse text'e çevir (policy'leri önce drop et)
+-- Eski veritabanında UUID tipindeyse text'e çevir (policy + FK önce drop et)
 do $$
+declare
+  fk_name text;
 begin
   if exists (
     select 1 from information_schema.columns
@@ -256,6 +258,15 @@ begin
     drop policy if exists "room_votes_select" on public.room_votes;
     drop policy if exists "room_votes_insert_own" on public.room_votes;
     drop policy if exists "room_votes_delete_own" on public.room_votes;
+    -- Foreign key constraint'leri bul ve kaldır
+    select conname into fk_name from pg_constraint
+      where contype = 'f' and conrelid = 'public.room_votes'::regclass
+      and conkey[1] = (select attnum from pg_attribute where attrelid = 'public.room_votes'::regclass and attname = 'voter_id');
+    if fk_name is not null then execute format('alter table public.room_votes drop constraint %I', fk_name); end if;
+    select conname into fk_name from pg_constraint
+      where contype = 'f' and conrelid = 'public.room_votes'::regclass
+      and conkey[1] = (select attnum from pg_attribute where attrelid = 'public.room_votes'::regclass and attname = 'target_id');
+    if fk_name is not null then execute format('alter table public.room_votes drop constraint %I', fk_name); end if;
     -- Sütun tiplerini text'e çevir
     alter table public.room_votes alter column voter_id type text;
     alter table public.room_votes alter column target_id type text;
