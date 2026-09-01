@@ -1,11 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Copy, Link, Plus, Users, LogOut, Crown, Check } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ArrowLeft, Copy, Link, Plus, Users, LogOut, Crown, Check,
+  Settings as SettingsIcon, Share2, Send, MessageSquare, Search, RefreshCw, X,
+} from 'lucide-react'
 import { Button } from './components/common/Button'
 import { Avatar } from './components/common/Avatar'
 import { useToast } from './components/common/toast-context'
 import { supabase } from './lib/supabase'
-import { profileApi } from './lib/profileApi'
+import { CATEGORIES } from './constants'
 import { cn } from './utils/cn'
+
+// ─── Types ─────────────────────────────────────────────────────────────────
 
 interface RoomPlayer {
   user_id: string
@@ -15,21 +20,86 @@ interface RoomPlayer {
   is_host: boolean
 }
 
+interface FriendForInvite {
+  user_id: string
+  username: string
+  avatar: string
+}
+
+interface ActiveRoom {
+  id: string
+  code: string
+  host_id: string
+  state: string
+  player_count: number
+  host_name: string
+}
+
+interface ChatMsg {
+  id: string
+  user_id: string
+  player_name: string
+  text: string
+  message_type: string
+  created_at: string
+}
+
+interface RoomSettings {
+  turnTimeLimit: number
+  roundsBeforeVoting: number
+  wordDifficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'MIXED'
+  selectedCategories: string[]
+  isPublic: boolean
+}
+
+const DEFAULT_SETTINGS: RoomSettings = {
+  turnTimeLimit: 30,
+  roundsBeforeVoting: 2,
+  wordDifficulty: 'MIXED',
+  selectedCategories: [],
+  isPublic: false,
+}
+
 function generateRoomCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
 }
 
-export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnterRoom: (info: { roomId: string; roomCode: string }) => void }) {
+// ─── Component ─────────────────────────────────────────────────────────────
+
+export function OnlineLobby({
+  onExit,
+  onEnterRoom,
+}: {
+  onExit: () => void
+  onEnterRoom: (info: { roomId: string; roomCode: string }) => void
+}) {
   const [roomCode, setRoomCode] = useState('')
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [roomState, setRoomState] = useState<string>('LOBBY')
   const [players, setPlayers] = useState<RoomPlayer[]>([])
   const [isHost, setIsHost] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [settings, setSettings] = useState<RoomSettings>(DEFAULT_SETTINGS)
+  const [showSettings, setShowSettings] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
+  const [chat, setChat] = useState<ChatMsg[]>([])
+  const [chatText, setChatText] = useState('')
+  const [activeRooms, setActiveRooms] = useState<ActiveRoom[]>([])
+  const [showActiveRooms, setShowActiveRooms] = useState(false)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
+  const [friends, setFriends] = useState<FriendForInvite[]>([])
   const toast = useToast()
 
-  const myProfile = profileApi.get()
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  // ─── Auth user ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setMyUserId(user.id)
+    })
+  }, [])
 
   // ─── Realtime subscription ────────────────────────────────────────────────
   const refreshPlayersRef = useRef<(() => Promise<void>) | null>(null)
@@ -43,7 +113,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
 
       const { data: room } = await supabase
         .from('rooms')
-        .select('host_id, state')
+        .select('host_id, state, settings')
         .eq('id', activeRoomId)
         .single()
 
@@ -53,6 +123,13 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
         setPlayers([])
         toast.info('Oda kapatıldı')
         return
+      }
+
+      setRoomState(room.state)
+
+      // Settings'i yükle
+      if (room.settings) {
+        setSettings({ ...DEFAULT_SETTINGS, ...room.settings })
       }
 
       const { data: roomPlayers } = await supabase
@@ -97,6 +174,17 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
 
     refreshPlayersRef.current = refresh
 
+    // Chat'i yükle
+    const loadChat = async () => {
+      const { data: chatData } = await supabase
+        .from('room_chat')
+        .select('*')
+        .eq('room_id', activeRoomId)
+        .order('created_at', { ascending: true })
+      setChat(chatData ?? [])
+    }
+    void loadChat()
+
     const channel = supabase
       .channel(`room:${activeRoomId}`)
       .on(
@@ -109,6 +197,11 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
         { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${activeRoomId}` },
         () => { void refreshPlayersRef.current?.() },
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'room_chat', filter: `room_id=eq.${activeRoomId}` },
+        (payload) => { setChat((prev) => [...prev, payload.new as ChatMsg]) },
+      )
       .subscribe()
 
     void refresh()
@@ -119,32 +212,17 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
     }
   }, [activeRoomId, toast])
 
-  const refreshPlayers = async (roomId: string) => {
-    refreshPlayersRef.current?.()
-    // Fallback: eğer ref boşsa (ilk mount), manuel çek
-    if (!refreshPlayersRef.current) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: room } = await supabase.from('rooms').select('host_id, state').eq('id', roomId).single()
-      if (!room) return
-      const { data: roomPlayers } = await supabase.from('room_players').select('user_id, is_ready').eq('room_id', roomId)
-      if (!roomPlayers) return
-      const userIds = roomPlayers.map((rp) => rp.user_id)
-      if (userIds.length === 0) { setPlayers([]); return }
-      const { data: profiles } = await supabase.from('profiles').select('id, username, avatar').in('id', userIds)
-      const { data: inventories } = await supabase.from('inventory').select('user_id, equipped_avatar').in('user_id', userIds)
-      const equippedMap = new Map<string, string>()
-      for (const inv of inventories ?? []) equippedMap.set(inv.user_id, inv.equipped_avatar)
-      setPlayers((profiles ?? []).map((p) => ({
-        user_id: p.id,
-        username: p.username,
-        avatar: equippedMap.get(p.id) ?? p.avatar,
-        is_ready: roomPlayers.find((rp) => rp.user_id === p.id)?.is_ready ?? false,
-        is_host: room.host_id === p.id,
-      })))
-      setIsHost(room.host_id === user.id)
+  // ─── Oyun başlayınca otomatik geçiş ──────────────────────────────────────
+  useEffect(() => {
+    if (roomState === 'PLAYING' && activeRoomId && activeRoom) {
+      onEnterRoom({ roomId: activeRoomId, roomCode: activeRoom })
     }
-  }
+  }, [roomState, activeRoomId, activeRoom, onEnterRoom])
+
+  // ─── Chat scroll ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [chat])
 
   // ─── Oda oluştur ─────────────────────────────────────────────────────────
   const createRoom = async () => {
@@ -164,7 +242,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
           code,
           host_id: user.id,
           state: 'LOBBY',
-          settings: {},
+          settings: { ...DEFAULT_SETTINGS, isPublic: false },
         })
         .select('id, code')
         .single()
@@ -184,9 +262,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
-      await refreshPlayers(room.id)
       toast.success(`Oda ${room.code} oluşturuldu`)
-      onEnterRoom({ roomId: room.id, roomCode: room.code })
     } catch {
       toast.error('Bir hata oluştu')
     } finally {
@@ -195,8 +271,9 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
   }
 
   // ─── Odaya katıl ─────────────────────────────────────────────────────────
-  const joinRoom = async () => {
-    if (roomCode.length < 4) return
+  const joinRoom = async (code?: string) => {
+    const joinCode = (code ?? roomCode).toUpperCase()
+    if (joinCode.length < 4) return
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -208,7 +285,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
       const { data: room, error } = await supabase
         .from('rooms')
         .select('id, code, state')
-        .eq('code', roomCode.toUpperCase())
+        .eq('code', joinCode)
         .single()
 
       if (error || !room) {
@@ -231,9 +308,8 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
-      await refreshPlayers(room.id)
+      setRoomCode('')
       toast.success(`Odaya ${room.code} katıldın`)
-      onEnterRoom({ roomId: room.id, roomCode: room.code })
     } catch {
       toast.error('Bir hata oluştu')
     } finally {
@@ -241,77 +317,223 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
     }
   }
 
+  // ─── Aktif odaları yükle ─────────────────────────────────────────────────
+  const loadActiveRooms = useCallback(async () => {
+    const { data: rooms } = await supabase
+      .from('rooms')
+      .select('id, code, host_id, state')
+      .eq('state', 'LOBBY')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (!rooms || rooms.length === 0) {
+      setActiveRooms([])
+      return
+    }
+
+    // Her oda için oyuncu sayısı ve host adı
+    const roomList: ActiveRoom[] = []
+    for (const r of rooms) {
+      const { count } = await supabase
+        .from('room_players')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', r.id)
+
+      const { data: hostProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', r.host_id)
+        .single()
+
+      roomList.push({
+        id: r.id,
+        code: r.code,
+        host_id: r.host_id,
+        state: r.state,
+        player_count: count ?? 0,
+        host_name: hostProfile?.username ?? 'Oyuncu',
+      })
+    }
+    setActiveRooms(roomList)
+  }, [])
+
+  // ─── Arkadaşları yükle (davet için) ──────────────────────────────────────
+  const loadFriends = useCallback(async () => {
+    if (!myUserId) return
+    const { data: sent } = await supabase
+      .from('friends')
+      .select('friend_id, status')
+      .eq('user_id', myUserId)
+      .eq('status', 'accepted')
+    if (!sent || sent.length === 0) {
+      setFriends([])
+      return
+    }
+    const friendIds = sent.map((f) => f.friend_id)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar')
+      .in('id', friendIds)
+    const { data: inv } = await supabase
+      .from('inventory')
+      .select('user_id, equipped_avatar')
+      .in('user_id', friendIds)
+    const equippedMap = new Map<string, string>()
+    for (const i of inv ?? []) equippedMap.set(i.user_id, i.equipped_avatar)
+    setFriends((profiles ?? []).map((p) => ({
+      user_id: p.id,
+      username: p.username,
+      avatar: equippedMap.get(p.id) ?? p.avatar,
+    })))
+  }, [myUserId])
+
   // ─── Odadan ayrıl ────────────────────────────────────────────────────────
   const leaveRoom = async () => {
-    if (!activeRoomId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!activeRoomId || !myUserId) return
 
     await supabase
       .from('room_players')
       .delete()
       .eq('room_id', activeRoomId)
-      .eq('user_id', user.id)
+      .eq('user_id', myUserId)
 
-    // Host ayrılıyorsa odayı kapat
     if (isHost) {
-      await supabase
-        .from('rooms')
-        .delete()
-        .eq('id', activeRoomId)
+      await supabase.from('rooms').delete().eq('id', activeRoomId)
     }
 
     setActiveRoom(null)
     setActiveRoomId(null)
     setPlayers([])
     setIsHost(false)
+    setChat([])
     toast.info('Odadan ayrıldın')
   }
 
   // ─── Hazır durumunu değiştir ─────────────────────────────────────────────
   const toggleReady = async () => {
-    if (!activeRoomId) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const me = players.find((p) => p.user_id === user.id)
+    if (!activeRoomId || !myUserId) return
+    const me = players.find((p) => p.user_id === myUserId)
     const newReady = !(me?.is_ready ?? false)
-
     await supabase
       .from('room_players')
       .update({ is_ready: newReady })
       .eq('room_id', activeRoomId)
-      .eq('user_id', user.id)
+      .eq('user_id', myUserId)
   }
 
+  // ─── Ayarları kaydet ─────────────────────────────────────────────────────
+  const saveSettings = async () => {
+    if (!activeRoomId || !isHost) return
+    await supabase
+      .from('rooms')
+      .update({ settings })
+      .eq('id', activeRoomId)
+    setShowSettings(false)
+    toast.success('Oda ayarları güncellendi')
+  }
+
+  // ─── Davet linki kopyala ─────────────────────────────────────────────────
   const copyInvite = async () => {
+    if (!activeRoom) return
+    const inviteText = `Sahtekar Kim? oynamaya davetlisin! Oda kodu: ${activeRoom}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Sahtekar Kim?', text: inviteText })
+      } else {
+        await navigator.clipboard?.writeText(inviteText)
+        toast.success('Davet metni kopyalandı')
+      }
+    } catch {
+      // kullanıcı iptal etti
+    }
+  }
+
+  const copyCode = async () => {
     if (!activeRoom) return
     await navigator.clipboard?.writeText(activeRoom)
     toast.success('Oda kodu kopyalandı')
   }
 
-  // ─── Oda içi görünüm ─────────────────────────────────────────────────────
+  // ─── Chat gönder ─────────────────────────────────────────────────────────
+  const sendChat = async () => {
+    const text = chatText.trim()
+    if (!text || !activeRoomId || !myUserId) return
+    await supabase.from('room_chat').insert({
+      room_id: activeRoomId,
+      user_id: myUserId,
+      player_name: players.find((p) => p.user_id === myUserId)?.username ?? 'Oyuncu',
+      text,
+      message_type: 'hint',
+    })
+    setChatText('')
+  }
+
+  // ─── Arkadaşı odaya davet et ─────────────────────────────────────────────
+  const inviteFriend = async (friend: FriendForInvite) => {
+    if (!activeRoom) return
+    const inviteText = `Sahtekar Kim? oynamaya davetlisin! Oda kodu: ${activeRoom} — ${window.location.origin}`
+    try {
+      await navigator.clipboard?.writeText(inviteText)
+      toast.success(`${friend.username} için davet kodu kopyalandı — paylaş!`)
+    } catch {
+      toast.error('Kopyalanamadı')
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ODA İÇİ GÖRÜNÜM
+  // ═══════════════════════════════════════════════════════════════════════
   if (activeRoom) {
     const allReady = players.length >= 3 && players.every((p) => p.is_ready)
     return (
       <div className="min-h-svh w-full bg-slate-950 px-4 py-6 text-slate-100">
         <div className="mx-auto w-full max-w-md">
-          <button type="button" onClick={onExit} className="mb-6 flex min-h-11 items-center gap-2 text-slate-400 hover:text-white">
-            <ArrowLeft className="h-5 w-5" /> Ana Menü
-          </button>
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <button type="button" onClick={leaveRoom} className="flex min-h-11 items-center gap-2 text-slate-400 hover:text-white">
+              <ArrowLeft className="h-5 w-5" /> Çık
+            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setShowInvite(true); void loadFriends() }} aria-label="Arkadaş davet et" className="rounded-lg bg-slate-800 p-2.5 text-cyan-300 hover:bg-slate-700">
+                <Users className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={copyInvite} aria-label="Davet linki paylaş" className="rounded-lg bg-slate-800 p-2.5 text-indigo-300 hover:bg-slate-700">
+                <Share2 className="h-4 w-4" />
+              </button>
+              {isHost && (
+                <button type="button" onClick={() => setShowSettings(true)} aria-label="Oda ayarları" className="rounded-lg bg-slate-800 p-2.5 text-slate-300 hover:bg-slate-700">
+                  <SettingsIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
 
+          {/* Oda kodu */}
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Oda kodu</p>
             <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-700">
               <span className="font-mono text-2xl tracking-[0.3em] text-cyan-300">{activeRoom}</span>
-              <button type="button" onClick={copyInvite} aria-label="Oda kodunu kopyala" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">
+              <button type="button" onClick={copyCode} aria-label="Oda kodunu kopyala" className="rounded-lg p-2 text-slate-300 hover:bg-slate-800">
                 <Copy className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-2 text-xs text-slate-500">Bu kodu arkadaşlarınla paylaş — kodu girip odaya katılabilirler.</p>
           </div>
 
-          <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
+          {/* Oyun ayarları özeti */}
+          <div className="mb-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">{settings.turnTimeLimit}sn/tur</span>
+            <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">{settings.roundsBeforeVoting} tur</span>
+            <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">
+              {settings.wordDifficulty === 'MIXED' ? 'Karışık' : settings.wordDifficulty === 'EASY' ? 'Kolay' : settings.wordDifficulty === 'MEDIUM' ? 'Orta' : 'Zor'}
+            </span>
+            {settings.selectedCategories.length > 0 && (
+              <span className="rounded-lg bg-slate-800 px-2 py-1 text-slate-400">{settings.selectedCategories.length} kategori</span>
+            )}
+          </div>
+
+          {/* Oyuncular */}
+          <div className="mb-2 flex items-center gap-2 text-sm text-slate-400">
             <Users className="h-4 w-4" />
             <span>{players.length} oyuncu</span>
             <span className="text-slate-600">·</span>
@@ -333,11 +555,9 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-medium text-slate-100">
                     {p.username}
-                    {p.user_id === myProfile.playerId && ' (sen)'}
+                    {p.user_id === myUserId && ' (sen)'}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    {p.is_host ? 'Host' : 'Oyuncu'}
-                  </p>
+                  <p className="text-xs text-slate-500">{p.is_host ? 'Host' : 'Oyuncu'}</p>
                 </div>
                 {p.is_host && <Crown className="h-4 w-4 text-amber-400" />}
                 {p.is_ready && <Check className="h-4 w-4 text-emerald-400" />}
@@ -345,6 +565,41 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
             ))}
           </div>
 
+          {/* Lobi chat */}
+          <div className="mt-4">
+            <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Lobi sohbeti
+            </div>
+            <div ref={chatScrollRef} className="max-h-32 space-y-1.5 overflow-y-auto rounded-xl bg-slate-900/50 p-3 ring-1 ring-slate-800">
+              {chat.length === 0 ? (
+                <p className="py-3 text-center text-xs text-slate-600">Henüz mesaj yok...</p>
+              ) : (
+                chat.map((msg) => (
+                  <div key={msg.id} className={cn('text-xs', msg.message_type === 'system' ? 'text-center text-slate-500' : '')}>
+                    {msg.message_type !== 'system' && <span className="font-semibold text-indigo-300">{msg.player_name}: </span>}
+                    {msg.text}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={chatText}
+                onChange={(e) => setChatText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                placeholder="Mesaj..."
+                maxLength={100}
+                aria-label="Lobi mesajı"
+                className="min-w-0 flex-1 rounded-xl bg-slate-800 px-3 py-2 text-sm ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400"
+              />
+              <Button size="sm" onClick={sendChat} disabled={!chatText.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Aksiyonlar */}
           <div className="mt-6 flex gap-3">
             <Button variant="secondary" onClick={leaveRoom}>
               <LogOut className="h-4 w-4" />
@@ -352,7 +607,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
             </Button>
             {!isHost && (
               <Button fullWidth onClick={toggleReady}>
-                {players.find((p) => p.user_id === myProfile.playerId)?.is_ready ? 'Hazır değil' : 'Hazırım'}
+                {players.find((p) => p.user_id === myUserId)?.is_ready ? 'Hazır değil' : 'Hazırım'}
               </Button>
             )}
             {isHost && (
@@ -368,11 +623,33 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
             </p>
           )}
         </div>
+
+        {/* ─── Ayarlar Modal ─────────────────────────────────────────────── */}
+        {showSettings && (
+          <RoomSettingsModal
+            settings={settings}
+            onChange={setSettings}
+            onSave={saveSettings}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {/* ─── Arkadaş Davet Modal ──────────────────────────────────────── */}
+        {showInvite && (
+          <InviteFriendsModal
+            friends={friends}
+            onInvite={inviteFriend}
+            onCopyCode={copyCode}
+            onClose={() => setShowInvite(false)}
+          />
+        )}
       </div>
     )
   }
 
-  // ─── Oda oluşturma/katılma görünümü ──────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // ODA OLUŞTURMA / KATILMA GÖRÜNÜMÜ
+  // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-svh w-full bg-slate-950 px-4 py-6 text-slate-100">
       <div className="mx-auto w-full max-w-md">
@@ -387,6 +664,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
         </div>
 
         <div className="space-y-3">
+          {/* Oda oluştur */}
           <section className="rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-4">
             <div className="flex items-center gap-3">
               <Plus className="h-5 w-5 text-indigo-300" />
@@ -401,6 +679,7 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
             </Button>
           </section>
 
+          {/* Odaya katıl */}
           <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
             <div className="flex items-center gap-3">
               <Link className="h-5 w-5 text-cyan-300" />
@@ -413,17 +692,37 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
               <input
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
                 maxLength={6}
                 placeholder="ABC123"
                 aria-label="Oda kodu"
                 className="min-w-0 flex-1 rounded-xl bg-slate-950 px-4 font-mono tracking-widest text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400"
               />
-              <Button disabled={roomCode.length < 4 || loading} onClick={joinRoom}>
+              <Button disabled={roomCode.length < 4 || loading} onClick={() => joinRoom()}>
                 Katıl
               </Button>
             </div>
           </section>
 
+          {/* Aktif odalar */}
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+            <div className="flex items-center gap-3">
+              <Search className="h-5 w-5 text-emerald-300" />
+              <div className="flex-1">
+                <h2 className="font-semibold">Aktif odalar</h2>
+                <p className="text-xs text-slate-400">Açık odalara göz at.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowActiveRooms(true); void loadActiveRooms() }}
+                className="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700"
+              >
+                Görüntüle
+              </button>
+            </div>
+          </section>
+
+          {/* Nasıl oynanır */}
           <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
             <div className="flex items-center gap-3">
               <Users className="h-5 w-5 text-emerald-300" />
@@ -440,6 +739,280 @@ export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnt
             </ol>
           </section>
         </div>
+      </div>
+
+      {/* ─── Aktif Odalar Modal ──────────────────────────────────────────── */}
+      {showActiveRooms && (
+        <ActiveRoomsModal
+          rooms={activeRooms}
+          loading={loading}
+          onRefresh={loadActiveRooms}
+          onJoin={(code) => { setShowActiveRooms(false); void joinRoom(code) }}
+          onClose={() => setShowActiveRooms(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROOM SETTINGS MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function RoomSettingsModal({
+  settings,
+  onChange,
+  onSave,
+  onClose,
+}: {
+  settings: RoomSettings
+  onChange: (s: RoomSettings) => void
+  onSave: () => void
+  onClose: () => void
+}) {
+  const difficulties: { value: RoomSettings['wordDifficulty']; label: string }[] = [
+    { value: 'MIXED', label: 'Karışık' },
+    { value: 'EASY', label: 'Kolay' },
+    { value: 'MEDIUM', label: 'Orta' },
+    { value: 'HARD', label: 'Zor' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Oda Ayarları</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Tur süresi */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-sm text-slate-300">Tur Süresi</label>
+              <span className="text-sm font-semibold text-indigo-300">{settings.turnTimeLimit}sn</span>
+            </div>
+            <input
+              type="range" min={10} max={120} step={5}
+              value={settings.turnTimeLimit}
+              onChange={(e) => onChange({ ...settings, turnTimeLimit: Number(e.target.value) })}
+              className="w-full accent-indigo-500"
+            />
+          </div>
+
+          {/* Tur sayısı */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-sm text-slate-300">Oylama Öncesi Tur</label>
+              <span className="text-sm font-semibold text-indigo-300">{settings.roundsBeforeVoting}</span>
+            </div>
+            <input
+              type="range" min={1} max={5} step={1}
+              value={settings.roundsBeforeVoting}
+              onChange={(e) => onChange({ ...settings, roundsBeforeVoting: Number(e.target.value) })}
+              className="w-full accent-indigo-500"
+            />
+          </div>
+
+          {/* Kelime zorluğu */}
+          <div>
+            <label className="mb-1.5 block text-sm text-slate-300">Kelime Zorluğu</label>
+            <div className="grid grid-cols-4 gap-2">
+              {difficulties.map((d) => (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => onChange({ ...settings, wordDifficulty: d.value })}
+                  className={cn(
+                    'rounded-lg px-2 py-2 text-xs font-medium transition-colors min-h-11',
+                    settings.wordDifficulty === d.value ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700',
+                  )}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Kategoriler */}
+          <div>
+            <label className="mb-1.5 block text-sm text-slate-300">Kategoriler (boş = tümü)</label>
+            <div className="flex flex-wrap gap-1.5">
+              {CATEGORIES.map((cat) => {
+                const selected = settings.selectedCategories.includes(cat)
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      const next = selected
+                        ? settings.selectedCategories.filter((c) => c !== cat)
+                        : [...settings.selectedCategories, cat]
+                      onChange({ ...settings, selectedCategories: next })
+                    }}
+                    className={cn(
+                      'rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      selected ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700',
+                    )}
+                  >
+                    {cat}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Herkese açık */}
+          <button
+            type="button"
+            onClick={() => onChange({ ...settings, isPublic: !settings.isPublic })}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl px-4 py-3 ring-1 transition-colors text-left min-h-11',
+              settings.isPublic ? 'bg-indigo-500/10 ring-indigo-500/40' : 'bg-slate-800/40 ring-slate-700',
+            )}
+          >
+            <Search className={cn('h-5 w-5', settings.isPublic ? 'text-indigo-300' : 'text-slate-500')} />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-slate-100">Herkese açık oda</p>
+              <p className="text-xs text-slate-400">Aktif odalar listesinde görünsün</p>
+            </div>
+            <span className={cn('relative h-6 w-11 rounded-full transition-colors', settings.isPublic ? 'bg-indigo-500' : 'bg-slate-700')}>
+              <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all', settings.isPublic ? 'left-[1.375rem]' : 'left-0.5')} />
+            </span>
+          </button>
+        </div>
+
+        <Button fullWidth className="mt-5" onClick={onSave}>
+          <Check className="h-4 w-4" /> Kaydet
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INVITE FRIENDS MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function InviteFriendsModal({
+  friends,
+  onInvite,
+  onCopyCode,
+  onClose,
+}: {
+  friends: FriendForInvite[]
+  onInvite: (f: FriendForInvite) => void
+  onCopyCode: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Arkadaş Davet Et</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Kod kopyala */}
+        <button
+          type="button"
+          onClick={onCopyCode}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-cyan-300 hover:bg-slate-700"
+        >
+          <Copy className="h-4 w-4" />
+          Oda kodunu kopyala
+        </button>
+
+        {/* Arkadaş listesi */}
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Arkadaşların</p>
+        {friends.length === 0 ? (
+          <div className="rounded-xl bg-slate-800/50 px-4 py-8 text-center text-sm text-slate-500">
+            Henüz arkadaşın yok. Sosyal bölümünden arkadaş ekleyebilirsin.
+          </div>
+        ) : (
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {friends.map((f) => (
+              <div key={f.user_id} className="flex items-center gap-3 rounded-xl bg-slate-800/60 px-3 py-2.5">
+                <Avatar avatarId={f.avatar} size="sm" hideFrame />
+                <span className="flex-1 truncate text-sm text-slate-200">{f.username}</span>
+                <button
+                  type="button"
+                  onClick={() => onInvite(f)}
+                  className="rounded-lg bg-indigo-500/20 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/30"
+                >
+                  <Share2 className="mr-1 inline h-3 w-3" />
+                  Davet
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACTIVE ROOMS MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ActiveRoomsModal({
+  rooms,
+  onRefresh,
+  onJoin,
+  onClose,
+}: {
+  rooms: ActiveRoom[]
+  loading: boolean
+  onRefresh: () => void
+  onJoin: (code: string) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">Aktif Odalar</h2>
+          <div className="flex gap-2">
+            <button type="button" onClick={onRefresh} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800" aria-label="Yenile">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {rooms.length === 0 ? (
+          <div className="rounded-xl bg-slate-800/50 px-4 py-8 text-center text-sm text-slate-500">
+            Şu anda aktif oda yok. Yeni bir oda oluştur!
+          </div>
+        ) : (
+          <div className="max-h-96 space-y-2 overflow-y-auto">
+            {rooms.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 rounded-xl bg-slate-800/60 px-3 py-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/15">
+                  <Users className="h-5 w-5 text-indigo-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-sm font-semibold text-cyan-300">{r.code}</p>
+                  <p className="text-xs text-slate-500">{r.host_name} · {r.player_count} oyuncu</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onJoin(r.code)}
+                  className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-400"
+                >
+                  Katıl
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
