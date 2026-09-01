@@ -485,7 +485,15 @@ grant select on public.leaderboard to anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- REALTIME: tabloları realtime yayınına ekle
+-- (önce çıkar, sonra ekle — tekrar çalıştırınca hata vermesin)
 -- ═══════════════════════════════════════════════════════════════════════════
+
+alter publication supabase_realtime drop table if exists public.rooms;
+alter publication supabase_realtime drop table if exists public.room_players;
+alter publication supabase_realtime drop table if exists public.room_chat;
+alter publication supabase_realtime drop table if exists public.room_votes;
+alter publication supabase_realtime drop table if exists public.friends;
+alter publication supabase_realtime drop table if exists public.room_invites;
 
 alter publication supabase_realtime add table public.rooms;
 alter publication supabase_realtime add table public.room_players;
