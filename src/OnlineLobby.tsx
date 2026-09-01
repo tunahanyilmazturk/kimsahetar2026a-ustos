@@ -400,6 +400,10 @@ export function OnlineLobby({
   }, [myUserId])
 
   // ─── Odadan ayrıl ────────────────────────────────────────────────────────
+  // Sadece room_players satırını sil — trigger gerisini halleder:
+  //   - Son oyuncu ayrılırsa oda otomatik silinir
+  //   - Host ayrılırsa host transferi yapılır
+  //   - Oyun sırasında <3 oyuncu kalırsa oyun FINISHED olur
   const leaveRoom = async () => {
     if (!activeRoomId || !myUserId) return
 
@@ -408,10 +412,6 @@ export function OnlineLobby({
       .delete()
       .eq('room_id', activeRoomId)
       .eq('user_id', myUserId)
-
-    if (isHost) {
-      await supabase.from('rooms').delete().eq('id', activeRoomId)
-    }
 
     setActiveRoom(null)
     setActiveRoomId(null)
