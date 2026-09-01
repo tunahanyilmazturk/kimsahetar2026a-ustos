@@ -264,13 +264,18 @@ export function OnlineLobby({
         return
       }
 
-      await supabase
+      const { error: joinError } = await supabase
         .from('room_players')
         .insert({
           room_id: room.id,
           user_id: user.id,
           is_ready: true,
         })
+
+      if (joinError) {
+        toast.error('Odaya katılım kaydedilemedi: ' + joinError.message)
+        return
+      }
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
@@ -310,13 +315,18 @@ export function OnlineLobby({
         return
       }
 
-      await supabase
+      const { error: joinError } = await supabase
         .from('room_players')
         .upsert({
           room_id: room.id,
           user_id: user.id,
           is_ready: false,
         })
+
+      if (joinError) {
+        toast.error('Odaya katılınamadı: ' + joinError.message)
+        return
+      }
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
@@ -426,11 +436,12 @@ export function OnlineLobby({
     if (!activeRoomId || !myUserId) return
     const me = players.find((p) => p.user_id === myUserId)
     const newReady = !(me?.is_ready ?? false)
-    await supabase
+    const { error } = await supabase
       .from('room_players')
       .update({ is_ready: newReady })
       .eq('room_id', activeRoomId)
       .eq('user_id', myUserId)
+    if (error) toast.error('Hazır durumu güncellenemedi')
   }
 
   // ─── Ayarları kaydet ─────────────────────────────────────────────────────
