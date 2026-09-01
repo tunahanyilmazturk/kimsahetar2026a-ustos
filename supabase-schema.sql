@@ -106,7 +106,7 @@ create table if not exists public.rooms (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,
   host_id uuid not null references auth.users(id) on delete cascade,
-  state text not null default 'LOBBY', -- LOBBY | PLAYING | VOTING | FINISHED
+  state text not null default 'LOBBY', -- LOBBY | REVEAL | PLAYING | VOTING | FINISHED
   settings jsonb not null default '{}',
   current_word text,
   current_category text,
@@ -119,6 +119,17 @@ create table if not exists public.rooms (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Eski veritabanlarına eksik sütunları ekle
+alter table public.rooms add column if not exists current_word text;
+alter table public.rooms add column if not exists current_category text;
+alter table public.rooms add column if not exists impostor_id uuid;
+alter table public.rooms add column if not exists voted_impostor_id uuid;
+alter table public.rooms add column if not exists impostor_guess text;
+alter table public.rooms add column if not exists turn_index integer not null default 0;
+alter table public.rooms add column if not exists round integer not null default 1;
+alter table public.rooms add column if not exists winner text;
+alter table public.rooms add column if not exists updated_at timestamptz not null default now();
 
 -- ─── 9. ROOM PLAYERS ────────────────────────────────────────────────────────
 
