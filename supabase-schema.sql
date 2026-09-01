@@ -143,6 +143,9 @@ alter table public.room_players add column if not exists bot_name text;
 alter table public.room_players add column if not exists bot_avatar text;
 alter table public.room_players add column if not exists bot_difficulty text not null default 'SMART';
 
+-- Realtime update için replica identity gerekli
+alter table public.room_players replica identity full;
+
 -- Eski primary key (room_id, user_id) varsa kaldır — user_id artık nullable (botlar için)
 do $$
 begin
