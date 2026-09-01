@@ -120,13 +120,23 @@ create table if not exists public.rooms (
 
 create table if not exists public.room_players (
   room_id uuid not null references public.rooms(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,  -- nullable: botlar için null
+  is_bot boolean not null default false,
+  bot_name text,                    -- botlar için isim
+  bot_avatar text,                  -- botlar için avatar
+  bot_difficulty text not null default 'SMART',  -- EASY | SMART | EXPERT
   is_ready boolean not null default false,
   seat integer not null default 0,        -- turn order için sıra numarası
   passed boolean not null default false,   -- pas durumu
   joined_at timestamptz not null default now(),
   primary key (room_id, user_id)
 );
+
+-- Botlar için user_id null olabilir — primary key'i bot_name ile birlikte kullan
+-- (user_id null ise bot_name + room_id unique olmalı)
+create unique index if not exists idx_room_players_bot
+  on public.room_players(room_id, bot_name)
+  where is_bot = true;
 
 -- ─── 10. ROOM CHAT ──────────────────────────────────────────────────────────
 
@@ -375,16 +385,22 @@ create policy "rooms_update_own" on public.rooms for update using (auth.uid() = 
 create policy "rooms_delete_own" on public.rooms for delete using (auth.uid() = host_id);
 
 -- ─── ROOM PLAYERS: herkes görebilir, kendisi katılabilir/ayrılabilir/güncelleyebilir
+-- Bot ekleme: host odasına bot ekleyebilir (user_id null, is_bot true)
 alter table public.room_players enable row level security;
 drop policy if exists "room_players_select" on public.room_players;
 drop policy if exists "room_players_insert_own" on public.room_players;
 drop policy if exists "room_players_update_own" on public.room_players;
 drop policy if exists "room_players_delete_own" on public.room_players;
 create policy "room_players_select" on public.room_players for select using (true);
-create policy "room_players_insert_own" on public.room_players for insert with check (auth.uid() = user_id);
-create policy "room_players_update_own" on public.room_players for update using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-create policy "room_players_delete_own" on public.room_players for delete using (auth.uid() = user_id);
+-- Gerçek oyuncu: kendi user_id'si ile ekler; Bot: host olarak odasına bot ekler
+create policy "room_players_insert_own" on public.room_players for insert
+  with check (auth.uid() = user_id or (is_bot = true and user_id is null));
+create policy "room_players_update_own" on public.room_players for update
+  using (auth.uid() = user_id or is_bot = true)
+  with check (auth.uid() = user_id or is_bot = true);
+-- Silme: kendi satırını silebilir veya host odasındaki botları silebilir
+create policy "room_players_delete_own" on public.room_players for delete
+  using (auth.uid() = user_id or is_bot = true);
 
 -- ─── ROOM CHAT: herkes görebilir, kendisi yazabilir
 alter table public.room_chat enable row level security;

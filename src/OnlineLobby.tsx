@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, Copy, Link, Plus, Users, LogOut, Crown, Check,
   Settings as SettingsIcon, Share2, Send, MessageSquare, Search, RefreshCw, X,
+  Bot, Trash2,
 } from 'lucide-react'
 import { Button } from './components/common/Button'
 import { Avatar } from './components/common/Avatar'
@@ -18,6 +19,8 @@ interface RoomPlayer {
   avatar: string
   is_ready: boolean
   is_host: boolean
+  is_bot: boolean
+  bot_difficulty?: string
 }
 
 interface FriendForInvite {
@@ -146,39 +149,64 @@ export function OnlineLobby({
 
       const { data: roomPlayers } = await supabase
         .from('room_players')
-        .select('user_id, is_ready')
+        .select('user_id, is_ready, is_bot, bot_name, bot_avatar, bot_difficulty')
         .eq('room_id', activeRoomId)
 
       if (!roomPlayers) return
 
-      const userIds = roomPlayers.map((rp) => rp.user_id)
-      if (userIds.length === 0) {
+      if (roomPlayers.length === 0) {
         setPlayers([])
         return
       }
 
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, avatar')
-        .in('id', userIds)
+      // Gerçek oyuncuların user_id'lerini topla (botlar hariç)
+      const realUserIds = roomPlayers.filter((rp) => !rp.is_bot && rp.user_id).map((rp) => rp.user_id!)
 
-      const { data: inventories } = await supabase
-        .from('inventory')
-        .select('user_id, equipped_avatar')
-        .in('user_id', userIds)
+      const playerList: RoomPlayer[] = []
 
-      const equippedMap = new Map<string, string>()
-      for (const inv of inventories ?? []) {
-        equippedMap.set(inv.user_id, inv.equipped_avatar)
+      // Gerçek oyuncuları profile'dan çek
+      if (realUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, avatar')
+          .in('id', realUserIds)
+
+        const { data: inventories } = await supabase
+          .from('inventory')
+          .select('user_id, equipped_avatar')
+          .in('user_id', realUserIds)
+
+        const equippedMap = new Map<string, string>()
+        for (const inv of inventories ?? []) {
+          equippedMap.set(inv.user_id, inv.equipped_avatar)
+        }
+
+        for (const p of profiles ?? []) {
+          const rp = roomPlayers.find((r) => r.user_id === p.id)
+          playerList.push({
+            user_id: p.id,
+            username: p.username,
+            avatar: equippedMap.get(p.id) ?? p.avatar,
+            is_ready: rp?.is_ready ?? false,
+            is_host: room.host_id === p.id,
+            is_bot: false,
+          })
+        }
       }
 
-      const playerList: RoomPlayer[] = (profiles ?? []).map((p) => ({
-        user_id: p.id,
-        username: p.username,
-        avatar: equippedMap.get(p.id) ?? p.avatar,
-        is_ready: roomPlayers.find((rp) => rp.user_id === p.id)?.is_ready ?? false,
-        is_host: room.host_id === p.id,
-      }))
+      // Botları ekle
+      for (const rp of roomPlayers) {
+        if (!rp.is_bot) continue
+        playerList.push({
+          user_id: rp.bot_name ?? 'bot',
+          username: rp.bot_name ?? 'Bot',
+          avatar: rp.bot_avatar ?? 'avatar_default',
+          is_ready: true, // botlar her zaman hazır
+          is_host: false,
+          is_bot: true,
+          bot_difficulty: rp.bot_difficulty,
+        })
+      }
 
       setPlayers(playerList)
       setIsHost(room.host_id === user.id)
@@ -452,6 +480,56 @@ export function OnlineLobby({
     if (error) toast.error('Hazır durumu güncellenemedi')
   }
 
+  // ─── Bot ekle ────────────────────────────────────────────────────────────
+  const BOT_NAMES = ['Ali', 'Ayşe', 'Mehmet', 'Zeynep', 'Can', 'Elif', 'Burak', 'Selin', 'Emre', 'Deniz']
+  const BOT_AVATARS = ['avatar_01', 'avatar_02', 'avatar_03', 'avatar_04', 'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08']
+
+  const addBot = async (difficulty: 'EASY' | 'SMART' | 'EXPERT') => {
+    if (!activeRoomId || !isHost) return
+    // Kullanılmayan bot ismi bul
+    const usedNames = players.filter((p) => p.is_bot).map((p) => p.username)
+    const availableNames = BOT_NAMES.filter((n) => !usedNames.includes(n))
+    if (availableNames.length === 0) {
+      toast.warning('Daha fazla bot ekleyemezsin')
+      return
+    }
+    const botName = availableNames[Math.floor(Math.random() * availableNames.length)]
+    const botAvatar = BOT_AVATARS[Math.floor(Math.random() * BOT_AVATARS.length)]
+
+    const { error } = await supabase.from('room_players').insert({
+      room_id: activeRoomId,
+      user_id: null,
+      is_bot: true,
+      bot_name: botName,
+      bot_avatar: botAvatar,
+      bot_difficulty: difficulty,
+      is_ready: true,
+    })
+
+    if (error) {
+      toast.error('Bot eklenemedi: ' + error.message)
+      return
+    }
+    toast.success(`${botName} (Bot - ${difficulty}) odaya eklendi`)
+  }
+
+  // ─── Bot kaldır ───────────────────────────────────────────────────────────
+  const removeBot = async (botName: string) => {
+    if (!activeRoomId) return
+    const { error } = await supabase
+      .from('room_players')
+      .delete()
+      .eq('room_id', activeRoomId)
+      .eq('is_bot', true)
+      .eq('bot_name', botName)
+
+    if (error) {
+      toast.error('Bot kaldırılamadı')
+      return
+    }
+    toast.info(`${botName} odadan çıkarıldı`)
+  }
+
   // ─── Ayarları kaydet ─────────────────────────────────────────────────────
   const saveSettings = async () => {
     if (!activeRoomId || !isHost) return
@@ -599,6 +677,7 @@ export function OnlineLobby({
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-4 py-3 ring-1',
                   p.is_ready ? 'bg-emerald-500/10 ring-emerald-500/30' : 'bg-slate-900/80 ring-slate-800',
+                  p.is_bot && 'bg-indigo-500/5 ring-indigo-500/20',
                 )}
               >
                 <Avatar avatarId={p.avatar} size="sm" hideFrame />
@@ -607,13 +686,56 @@ export function OnlineLobby({
                     {p.username}
                     {p.user_id === myUserId && ' (sen)'}
                   </p>
-                  <p className="text-xs text-slate-500">{p.is_host ? 'Host' : 'Oyuncu'}</p>
+                  <p className="text-xs text-slate-500">
+                    {p.is_bot ? `Bot · ${p.bot_difficulty}` : p.is_host ? 'Host' : 'Oyuncu'}
+                  </p>
                 </div>
+                {p.is_bot && <Bot className="h-4 w-4 text-indigo-400" />}
                 {p.is_host && <Crown className="h-4 w-4 text-amber-400" />}
                 {p.is_ready && <Check className="h-4 w-4 text-emerald-400" />}
+                {isHost && p.is_bot && (
+                  <button
+                    type="button"
+                    onClick={() => removeBot(p.username)}
+                    aria-label={`${p.username} kaldır`}
+                    className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Bot ekleme (sadece host) */}
+          {isHost && players.length < 8 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => addBot('EASY')}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+              >
+                <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                Kolay Bot
+              </button>
+              <button
+                type="button"
+                onClick={() => addBot('SMART')}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+              >
+                <Bot className="h-3.5 w-3.5 text-amber-400" />
+                Akıllı Bot
+              </button>
+              <button
+                type="button"
+                onClick={() => addBot('EXPERT')}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
+              >
+                <Bot className="h-3.5 w-3.5 text-rose-400" />
+                Uzman Bot
+              </button>
+            </div>
+          )}
 
           {/* Lobi chat */}
           <div className="mt-4">
