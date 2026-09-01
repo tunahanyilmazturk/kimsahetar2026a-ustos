@@ -26,7 +26,11 @@ export function useProfile() {
       if (e.key && e.key.startsWith('sahtekar:')) refresh()
     }
     window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+    window.addEventListener('sahtekar:storage', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('sahtekar:storage', onStorage)
+    }
   }, [refresh])
 
   const updateProfile = useCallback((patch: Partial<Profile>) => {
@@ -45,6 +49,12 @@ export function useProfile() {
     const r = profileApi.addXp(amount)
     setProfile(profileApi.get())
     return r
+  }, [])
+
+  const addReward = useCallback((coins: number, xp: number) => {
+    const next = profileApi.addReward(coins, xp)
+    setProfile(next)
+    return next
   }, [])
 
   const buyAvatar = useCallback((avatarId: string, price: number) => {
@@ -85,6 +95,7 @@ export function useProfile() {
     updateProfile,
     addCoins,
     addXp,
+    addReward,
     buyAvatar,
     buyFrame,
     equipAvatar,

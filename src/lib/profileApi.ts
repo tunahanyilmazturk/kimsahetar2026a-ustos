@@ -148,6 +148,18 @@ export const profileApi = {
     return { xp: newXp, level: newLevel, leveledUp: newLevel > oldLevel }
   },
 
+  /**
+   * Ödül gibi coin + XP'nin birlikte verildiği durumlar için tek profil yazımı.
+   * İki ayrı update çağrısı Supabase'e eşzamanlı giderse son istek diğer alanı
+   * eski değeriyle ezebiliyordu; bu metot bunu tek payload ile önler.
+   */
+  addReward(coins: number, xp: number): Profile {
+    const current = this.get()
+    const nextXp = Math.min(XP_TIER_4, Math.max(0, current.xp + xp))
+    const nextCoins = Math.max(0, current.coins + coins)
+    return this.update({ coins: nextCoins, xp: nextXp })
+  },
+
   reset(): void {
     storage.set(STORAGE_KEYS.PROFILE, defaultProfile())
   },

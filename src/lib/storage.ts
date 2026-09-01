@@ -42,6 +42,9 @@ export const storage = {
     if (!isBrowser()) return false
     try {
       window.localStorage.setItem(key, JSON.stringify(value))
+      // `storage` olayı aynı sekmedeki diğer React instance'larında çalışmaz.
+      // Uygulama içi abonelerin de anında güncellenmesi için özel olay yayınla.
+      window.dispatchEvent(new CustomEvent('sahtekar:storage', { detail: { key } }))
       return true
     } catch (err) {
       console.warn(`[storage] set("${key}") başarısız:`, err)

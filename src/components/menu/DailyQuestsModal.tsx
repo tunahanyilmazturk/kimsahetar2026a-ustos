@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Check, Gift, Clock, Coins, Sparkles, CalendarCheck } from 'lucide-react'
 import { Modal } from '../common/Modal'
@@ -15,8 +16,9 @@ export interface DailyQuestsModalProps {
 }
 
 export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
-  const { profile, addCoins, addXp } = useProfile()
+  const { profile, addReward } = useProfile()
   const toast = useToast()
+  const [, refresh] = useState(0)
 
   const state = questsApi.get()
   const weeklyState = questsApi.getWeekly()
@@ -35,8 +37,8 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
       return
     }
     if (r.reward) {
-      addCoins(r.reward.coins)
-      addXp(r.reward.xp)
+      addReward(r.reward.coins, r.reward.xp)
+      refresh((value) => value + 1)
       toast.success(`+${r.reward.coins} coin, +${r.reward.xp} XP!`)
     }
   }
@@ -47,11 +49,20 @@ export function DailyQuestsModal({ open, onClose }: DailyQuestsModalProps) {
       return
     }
     const r = questsApi.claimAll()
-    if (r.coins > 0) addCoins(r.coins)
-    if (r.xp > 0) addXp(r.xp)
+    if (r.claimed.length > 0) {
+      addReward(r.coins, r.xp)
+      refresh((value) => value + 1)
+    }
     toast.success(`${r.claimed.length} görev ödülü alındı! +${r.coins} coin, +${r.xp} XP`)
   }
-  const handleWeeklyClaim = (id: string) => { const r = questsApi.claimWeekly(id); if (r.ok && r.reward) { addCoins(r.reward.coins); addXp(r.reward.xp); toast.success(`Haftalık ödül: +${r.reward.coins} coin, +${r.reward.xp} XP`) } else toast.error(r.reason ?? 'Ödül alınamadı') }
+  const handleWeeklyClaim = (id: string) => {
+    const r = questsApi.claimWeekly(id)
+    if (r.ok && r.reward) {
+      addReward(r.reward.coins, r.reward.xp)
+      refresh((value) => value + 1)
+      toast.success(`Haftalık ödül: +${r.reward.coins} coin, +${r.reward.xp} XP`)
+    } else toast.error(r.reason ?? 'Ödül alınamadı')
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Günlük Görevler" size="lg">
