@@ -150,11 +150,11 @@ describe('applyGameResult — genişletilmiş', () => {
   })
 
   it('REWARDS sabitleri beklenen değerlerde', () => {
-    expect(REWARDS.WIN_AS_PLAYER).toEqual({ xp: 50, coins: 30 })
-    expect(REWARDS.WIN_AS_IMPOSTOR).toEqual({ xp: 70, coins: 40 })
-    expect(REWARDS.LOSE).toEqual({ xp: 10, coins: 5 })
-    expect(REWARDS.CATCH_IMPOSTOR_BONUS).toEqual({ xp: 30, coins: 20 })
-    expect(REWARDS.IMPOSTOR_GUESS_BONUS).toEqual({ xp: 30, coins: 20 })
+    expect(REWARDS.WIN_AS_PLAYER).toEqual({ xp: 50, coins: 30, points: 100 })
+    expect(REWARDS.WIN_AS_IMPOSTOR).toEqual({ xp: 70, coins: 40, points: 150 })
+    expect(REWARDS.LOSE).toEqual({ xp: 10, coins: 5, points: 15 })
+    expect(REWARDS.CATCH_IMPOSTOR_BONUS).toEqual({ xp: 30, coins: 20, points: 50 })
+    expect(REWARDS.IMPOSTOR_GUESS_BONUS).toEqual({ xp: 30, coins: 20, points: 50 })
   })
 
   it('sahtekar galibiyeti — catch bonus almaz (sadece WIN_AS_IMPOSTOR)', () => {
