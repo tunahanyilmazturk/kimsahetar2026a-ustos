@@ -174,19 +174,24 @@ returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_player_id text;
+  v_hex text;
 begin
-  -- Player ID oluştur (SK-XXXXXXXX formatı)
+  -- Player ID oluştur (SK-XXXXXXXX formatı) — pgcrypto gerektirmez
+  v_hex := md5(random()::text || clock_timestamp()::text);
+  v_player_id := 'SK-' || upper(substr(v_hex, 1, 8));
+
   insert into public.profiles (id, username, player_id)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'username', 'Oyuncu'),
-    'SK-' || upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 8))
+    v_player_id
   );
 
   insert into public.stats (user_id) values (new.id);
 
-  insert into public.inventory (user_id)
-  values (new.id);
+  insert into public.inventory (user_id) values (new.id);
 
   return new;
 end;
