@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 import {
   ArrowLeft, Send, Clock, Eye, EyeOff, Crown, Check,
   Loader2, AlertTriangle, Trophy, Skull, Sparkles,
@@ -25,6 +25,9 @@ interface RoomPlayer {
   is_ready: boolean
   seat: number
   passed: boolean
+  is_bot: boolean
+  bot_name: string | null
+  bot_difficulty: string | null
 }
 
 interface ChatMsg {
@@ -40,7 +43,7 @@ interface RoomData {
   id: string
   code: string
   host_id: string
-  state: 'LOBBY' | 'PLAYING' | 'VOTING' | 'FINISHED'
+  state: 'LOBBY' | 'REVEAL' | 'PLAYING' | 'VOTING' | 'FINISHED'
   settings: {
     turnTimeLimit?: number
     roundsBeforeVoting?: number
@@ -103,7 +106,7 @@ export function OnlineGame({
 
       if (roomData) setRoom(roomData as RoomData)
       if (rpData) {
-        const userIds = rpData.map((rp) => rp.user_id)
+        const userIds = rpData.filter((rp) => rp.user_id).map((rp) => rp.user_id)
         const { data: profiles } = await supabase.from('profiles').select('id, username, avatar').in('id', userIds)
         const { data: inv } = await supabase.from('inventory').select('user_id, equipped_avatar').in('user_id', userIds)
         const equippedMap = new Map<string, string>()
@@ -113,12 +116,15 @@ export function OnlineGame({
         setPlayers(sorted.map((rp) => {
           const p = profiles?.find((pr) => pr.id === rp.user_id)
           return {
-            user_id: rp.user_id,
-            username: p?.username ?? 'Oyuncu',
-            avatar: equippedMap.get(rp.user_id) ?? p?.avatar ?? 'avatar_default',
+            user_id: rp.user_id ?? `bot-${rp.bot_name}`,
+            username: rp.is_bot ? (rp.bot_name ?? 'Bot') : (p?.username ?? 'Oyuncu'),
+            avatar: rp.is_bot ? (rp.bot_avatar ?? 'avatar_default') : (equippedMap.get(rp.user_id) ?? p?.avatar ?? 'avatar_default'),
             is_ready: rp.is_ready,
             seat: rp.seat ?? 0,
             passed: rp.passed ?? false,
+            is_bot: rp.is_bot ?? false,
+            bot_name: rp.bot_name ?? null,
+            bot_difficulty: rp.bot_difficulty ?? null,
           }
         }))
       }
@@ -157,7 +163,7 @@ export function OnlineGame({
         async () => {
           const { data: rpData } = await supabase.from('room_players').select('*').eq('room_id', roomId)
           if (!rpData) return
-          const userIds = rpData.map((rp) => rp.user_id)
+          const userIds = rpData.filter((rp) => rp.user_id).map((rp) => rp.user_id)
           const { data: profiles } = await supabase.from('profiles').select('id, username, avatar').in('id', userIds)
           const { data: inv } = await supabase.from('inventory').select('user_id, equipped_avatar').in('user_id', userIds)
           const equippedMap = new Map<string, string>()
@@ -166,12 +172,15 @@ export function OnlineGame({
           setPlayers(sorted.map((rp) => {
             const p = profiles?.find((pr) => pr.id === rp.user_id)
             return {
-              user_id: rp.user_id,
-              username: p?.username ?? 'Oyuncu',
-              avatar: equippedMap.get(rp.user_id) ?? p?.avatar ?? 'avatar_default',
+              user_id: rp.user_id ?? `bot-${rp.bot_name}`,
+              username: rp.is_bot ? (rp.bot_name ?? 'Bot') : (p?.username ?? 'Oyuncu'),
+              avatar: rp.is_bot ? (rp.bot_avatar ?? 'avatar_default') : (equippedMap.get(rp.user_id) ?? p?.avatar ?? 'avatar_default'),
               is_ready: rp.is_ready,
               seat: rp.seat ?? 0,
               passed: rp.passed ?? false,
+              is_bot: rp.is_bot ?? false,
+              bot_name: rp.bot_name ?? null,
+              bot_difficulty: rp.bot_difficulty ?? null,
             }
           }))
         },
@@ -532,6 +541,21 @@ export function OnlineGame({
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // REVEAL STATE — Her oyuncu rolünü görür
+  // ═══════════════════════════════════════════════════════════════════════
+  if (room.state === 'REVEAL') {
+    return <RevealPhase
+      room={room}
+      players={players}
+      myUserId={myUserId}
+      isImpostor={isImpostor}
+      isHost={isHost}
+      roomId={roomId}
+      onLeave={leaveRoom}
+    />
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // PLAYING STATE — Hints
   // ═══════════════════════════════════════════════════════════════════════
   if (room.state === 'PLAYING') {
@@ -819,5 +843,196 @@ function RoleCard({ isImpostor, word, category }: { isImpostor: boolean; word: s
         </div>
       </div>
     </motion.div>
+  )
+}
+
+// ─── Reveal Phase (Online) ─────────────────────────────────────────────────
+
+function RevealPhase({
+  room,
+  players,
+  myUserId,
+  isImpostor,
+  isHost,
+  roomId,
+  onLeave,
+}: {
+  room: RoomData
+  players: RoomPlayer[]
+  myUserId: string
+  isImpostor: boolean
+  isHost: boolean
+  roomId: string
+  onLeave: () => void
+}) {
+  const [revealed, setRevealed] = useState(false)
+  const [iAmReady, setIAmReady] = useState(false)
+
+  // Botlar otomatik hazır
+  useEffect(() => {
+    const botPlayers = players.filter((p) => p.is_bot)
+    if (botPlayers.length > 0 && !botPlayers.every((p) => p.is_ready)) {
+      // Botları hazır yap
+      void (async () => {
+        for (const bot of botPlayers) {
+          if (bot.user_id.startsWith('bot-')) continue // botlar zaten ready
+        }
+      })()
+    }
+  }, [players])
+
+  // Tüm oyuncular hazır mı?
+  const allRevealed = players.length > 0 && players.every((p) => p.is_ready || p.is_bot)
+
+  // Host tüm oyuncular hazır olunca PLAYING'e geç
+  useEffect(() => {
+    if (!isHost || !allRevealed) return
+    void supabase.from('rooms').update({ state: 'PLAYING' }).eq('id', roomId)
+  }, [isHost, allRevealed, roomId])
+
+  // "Hazırım" butonu
+  const markReady = async () => {
+    setIAmReady(true)
+    // Gerçek oyuncu ise DB'ye yaz
+    if (!myUserId.startsWith('bot-')) {
+      await supabase.from('room_players')
+        .update({ is_ready: true })
+        .eq('room_id', roomId)
+        .eq('user_id', myUserId)
+    }
+  }
+
+  const myPlayer = players.find((p) => p.user_id === myUserId)
+  const readyCount = players.filter((p) => p.is_ready || p.is_bot).length
+
+  return (
+    <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
+      {/* Background */}
+      {revealed && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-30 blur-[1px]"
+            style={{
+              backgroundImage: "url('/role-duel.png')",
+              backgroundPosition: isImpostor ? 'left center' : 'right center',
+              backgroundSize: '200% auto',
+            }}
+            aria-hidden="true"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-slate-950/65" aria-hidden="true" />
+        </>
+      )}
+
+      {/* İlerleme göstergesi */}
+      <div className="mb-6 flex items-center gap-2">
+        <span className="text-xs text-slate-400">Roller dağıtılıyor</span>
+        <span className="text-xs font-semibold text-indigo-300">{readyCount}/{players.length} hazır</span>
+      </div>
+
+      {/* Oyuncu kartı */}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 25 }}
+        className="relative z-10 w-full max-w-md flex flex-col items-center gap-6"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Avatar avatarId={myPlayer?.avatar ?? 'avatar_default'} size="xl" hideFrame />
+          <h2 className="text-2xl font-bold text-slate-100">{myPlayer?.username}</h2>
+        </div>
+
+        {/* Reveal butonu */}
+        {!revealed && (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <p className="text-center text-slate-300 max-w-xs">
+              Rolünü görmek için aşağıya dokun. <strong className="text-indigo-300">Sadece sen gör!</strong>
+            </p>
+            <Button size="lg" onClick={() => setRevealed(true)}>
+              <Eye className="h-5 w-5" />
+              Rolümü Gör
+            </Button>
+          </div>
+        )}
+
+        {/* Reveal içeriği */}
+        <AnimatePresence>
+          {revealed && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="w-full"
+            >
+              {isImpostor ? (
+                /* Sahtekar Kartı */
+                <div className="rounded-2xl bg-linear-to-br from-rose-950/60 to-red-950/40 ring-2 ring-rose-500/50 p-6 text-center shadow-2xl shadow-rose-500/20">
+                  <div className="mb-3 flex justify-center">
+                    <motion.div animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                      <AlertTriangle className="h-12 w-12 text-rose-400" />
+                    </motion.div>
+                  </div>
+                  <h3 className="text-xl font-bold text-rose-300 mb-2">Sen Sahtekarsın!</h3>
+                  <p className="text-sm text-rose-200/80 mb-4">
+                    Kelimeyi bilmiyorsun. Diğer oyuncuların ipuçlarından kelimeyi tahmin etmeye çalış.
+                    Yakalanma!
+                  </p>
+                  <div className="rounded-xl bg-slate-950/50 px-4 py-3 ring-1 ring-rose-500/30">
+                    <p className="text-xs text-rose-300/70 mb-1">Kategori</p>
+                    <p className="text-lg font-semibold text-rose-200">{room.current_category ?? '?'}</p>
+                  </div>
+                </div>
+              ) : (
+                /* Oyuncu Kartı */
+                <div className="rounded-2xl bg-linear-to-br from-indigo-950/60 to-purple-950/40 ring-2 ring-indigo-500/50 p-6 text-center shadow-2xl shadow-indigo-500/20">
+                  <div className="mb-3 flex justify-center">
+                    <Sparkles className="h-12 w-12 text-indigo-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-indigo-300 mb-2">Sen Oyuncusun</h3>
+                  <div className="rounded-xl bg-slate-950/50 px-4 py-4 ring-1 ring-indigo-500/30 mb-3">
+                    <p className="text-xs text-slate-400 mb-1">Kelime</p>
+                    <p className="text-2xl font-bold text-slate-100 mb-2">{room.current_word ?? '?'}</p>
+                    <p className="text-xs text-slate-500">{room.current_category ?? ''}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/30 px-3 py-2 inline-block">
+                    <p className="text-xs text-indigo-300/70">
+                      İpuçları vererek sahtekarı bulmaya yardım et!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Hazırım butonu */}
+              <div className="mt-6 flex flex-col gap-3">
+                {!iAmReady ? (
+                  <Button
+                    size="lg"
+                    fullWidth
+                    variant={isImpostor ? 'danger' : 'primary'}
+                    onClick={markReady}
+                  >
+                    <Check className="h-5 w-5" />
+                    Hazırım — Oyunu Başlat
+                  </Button>
+                ) : (
+                  <div className="rounded-xl bg-emerald-500/10 px-4 py-3 text-center ring-1 ring-emerald-500/30">
+                    <Check className="mx-auto h-6 w-6 text-emerald-400" />
+                    <p className="mt-1 text-sm font-semibold text-emerald-300">Hazırım!</p>
+                    <p className="text-xs text-slate-400">
+                      {allRevealed ? 'Oyun başlıyor...' : `Diğer oyuncular bekleniyor (${readyCount}/${players.length})`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Çıkış */}
+        <button type="button" onClick={onLeave} className="mt-4 text-xs text-slate-500 hover:text-slate-300">
+          Odadan Çık
+        </button>
+      </motion.div>
+    </div>
   )
 }

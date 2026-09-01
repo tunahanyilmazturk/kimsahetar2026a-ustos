@@ -9,6 +9,7 @@ import { Avatar } from './components/common/Avatar'
 import { useToast } from './components/common/toast-context'
 import { supabase } from './lib/supabase'
 import { CATEGORIES } from './constants'
+import { pickWord, pickImpostor } from './utils/wordPool'
 import { cn } from './utils/cn'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -262,7 +263,7 @@ export function OnlineLobby({
 
   // ─── Oyun başlayınca otomatik geçiş ──────────────────────────────────────
   useEffect(() => {
-    if (roomState === 'PLAYING' && activeRoomId && activeRoom) {
+    if ((roomState === 'REVEAL' || roomState === 'PLAYING') && activeRoomId && activeRoom) {
       onEnterRoom({ roomId: activeRoomId, roomCode: activeRoom })
     }
   }, [roomState, activeRoomId, activeRoom, onEnterRoom])
@@ -579,14 +580,60 @@ export function OnlineLobby({
       toast.warning('Tüm oyuncular hazır olmalı')
       return
     }
+
+    // Kelime ve sahtekar seç
+    const allIds = players.map((p) => p.user_id ?? `bot-${p.username}`)
+    const word = pickWord({
+      categories: settings.selectedCategories.length > 0 ? settings.selectedCategories : [],
+      difficulty: settings.wordDifficulty || 'MIXED',
+      recentWords: [],
+      customWords: [],
+    })
+    const impostorId = pickImpostor(allIds)
+
+    // Seat numaralarını ata
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i]
+      await supabase.from('room_players')
+        .update({ seat: i, passed: false, is_ready: false })
+        .eq('room_id', activeRoomId)
+        .eq('user_id', p.user_id)
+    }
+
+    // Odayı REVEAL state'ine geçir — kelime + sahtekar ayarla
     const { error } = await supabase
       .from('rooms')
-      .update({ state: 'PLAYING' })
+      .update({
+        state: 'REVEAL',
+        current_word: word.word,
+        current_category: word.category,
+        impostor_id: impostorId,
+        turn_index: 0,
+        round: 1,
+        winner: null,
+        voted_impostor_id: null,
+        impostor_guess: null,
+      })
       .eq('id', activeRoomId)
+
     if (error) {
       toast.error('Oyun başlatılamadı: ' + error.message)
       return
     }
+
+    // Eski chat ve oyları temizle
+    await supabase.from('room_chat').delete().eq('room_id', activeRoomId)
+    await supabase.from('room_votes').delete().eq('room_id', activeRoomId)
+
+    // Sistem mesajı
+    await supabase.from('room_chat').insert({
+      room_id: activeRoomId,
+      user_id: myUserId,
+      player_name: 'Sistem',
+      text: 'Oyun başladı! Roller dağıtılıyor...',
+      message_type: 'system',
+    })
+
     // State güncellenecek, useEffect onEnterRoom'u tetikleyecek
   }
 
