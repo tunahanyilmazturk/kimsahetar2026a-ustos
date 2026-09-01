@@ -136,6 +136,14 @@ create table if not exists public.room_players (
   primary key (room_id, user_id)
 );
 
+-- Eski veritabanlarına bot sütunları ekle
+alter table public.room_players add column if not exists is_bot boolean not null default false;
+alter table public.room_players add column if not exists bot_name text;
+alter table public.room_players add column if not exists bot_avatar text;
+alter table public.room_players add column if not exists bot_difficulty text not null default 'SMART';
+-- user_id nullable yap (botlar için) — önce not null constraint'i kaldır
+alter table public.room_players alter column user_id drop not null;
+
 -- Botlar için user_id null olabilir — primary key'i bot_name ile birlikte kullan
 -- (user_id null ise bot_name + room_id unique olmalı)
 create unique index if not exists idx_room_players_bot
