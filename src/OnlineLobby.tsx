@@ -530,6 +530,28 @@ export function OnlineLobby({
     toast.info(`${botName} odadan çıkarıldı`)
   }
 
+  // ─── Oyunu başlat (host) ─────────────────────────────────────────────────
+  const startGame = async () => {
+    if (!activeRoomId || !isHost) return
+    if (players.length < 3) {
+      toast.warning('En az 3 oyuncu gerekli')
+      return
+    }
+    if (!players.every((p) => p.is_ready)) {
+      toast.warning('Tüm oyuncular hazır olmalı')
+      return
+    }
+    const { error } = await supabase
+      .from('rooms')
+      .update({ state: 'PLAYING' })
+      .eq('id', activeRoomId)
+    if (error) {
+      toast.error('Oyun başlatılamadı: ' + error.message)
+      return
+    }
+    // State güncellenecek, useEffect onEnterRoom'u tetikleyecek
+  }
+
   // ─── Ayarları kaydet ─────────────────────────────────────────────────────
   const saveSettings = async () => {
     if (!activeRoomId || !isHost) return
@@ -783,7 +805,7 @@ export function OnlineLobby({
               </Button>
             )}
             {isHost && (
-              <Button variant="success" fullWidth disabled={!allReady}>
+              <Button variant="success" fullWidth disabled={!allReady} onClick={startGame}>
                 <Plus className="h-4 w-4" />
                 Oyunu Başlat
               </Button>
