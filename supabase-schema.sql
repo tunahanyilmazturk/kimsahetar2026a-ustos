@@ -139,13 +139,13 @@ begin
     where table_name = 'rooms' and column_name = 'impostor_id'
       and data_type = 'uuid'
   ) then
+    -- Policy'leri geçici olarak kaldır (tip değişimi için)
+    drop policy if exists "rooms_select" on public.rooms;
+    drop policy if exists "rooms_insert_own" on public.rooms;
+    drop policy if exists "rooms_update_own" on public.rooms;
+    drop policy if exists "rooms_delete_own" on public.rooms;
+    -- Sütun tiplerini text'e çevir
     alter table public.rooms alter column impostor_id type text;
-  end if;
-  if exists (
-    select 1 from information_schema.columns
-    where table_name = 'rooms' and column_name = 'voted_impostor_id'
-      and data_type = 'uuid'
-  ) then
     alter table public.rooms alter column voted_impostor_id type text;
   end if;
 end $$;
@@ -244,7 +244,7 @@ create table if not exists public.room_votes (
   primary key (room_id, voter_id)
 );
 
--- Eski veritabanında UUID tipindeyse text'e çevir
+-- Eski veritabanında UUID tipindeyse text'e çevir (policy'leri önce drop et)
 do $$
 begin
   if exists (
@@ -252,6 +252,11 @@ begin
     where table_name = 'room_votes' and column_name = 'voter_id'
       and data_type = 'uuid'
   ) then
+    -- Policy'leri geçici olarak kaldır (tip değişimi için)
+    drop policy if exists "room_votes_select" on public.room_votes;
+    drop policy if exists "room_votes_insert_own" on public.room_votes;
+    drop policy if exists "room_votes_delete_own" on public.room_votes;
+    -- Sütun tiplerini text'e çevir
     alter table public.room_votes alter column voter_id type text;
     alter table public.room_votes alter column target_id type text;
   end if;
