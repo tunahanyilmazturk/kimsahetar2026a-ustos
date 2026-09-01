@@ -32,6 +32,7 @@ function AppInner() {
   const [authLoading, setAuthLoading] = useState(true)
   const [introSeen, setIntroSeen] = useState(() => localStorage.getItem('sahtekar:intro-seen') === '1')
   const [onlineRoom, setOnlineRoom] = useState<OnlineRoomInfo | null>(null)
+  const [joinRoomCode, setJoinRoomCode] = useState<string | null>(null)
   const { settings } = useSettings()
 
   // İlk yüklemede session'ı kontrol et + auth state değişimini dinle
@@ -84,10 +85,10 @@ function AppInner() {
       </Suspense></div>
     )
   }
-  if (screen === 'online') return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><OnlineLobby onExit={() => setScreen('menu')} onEnterRoom={(info) => { setOnlineRoom(info); setScreen('online-game') }} /></div>
+  if (screen === 'online') return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><OnlineLobby onExit={() => setScreen('menu')} onEnterRoom={(info) => { setOnlineRoom(info); setScreen('online-game') }} initialJoinCode={joinRoomCode} onJoined={() => setJoinRoomCode(null)} /></div>
   if (screen === 'online-game' && onlineRoom) return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><Suspense fallback={<LoadingScreen />}><OnlineGame roomId={onlineRoom.roomId} roomCode={onlineRoom.roomCode} onExit={() => { setOnlineRoom(null); setScreen('online') }} /></Suspense></div>
 
-  return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><MainMenuPanel onPlay={() => setScreen('game')} onOnline={() => setScreen('online')} /></div>
+  return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><MainMenuPanel onPlay={() => setScreen('game')} onOnline={() => setScreen('online')} onJoinRoom={(code) => { setJoinRoomCode(code); setScreen('online') }} /></div>
 }
 
 function LoadingScreen() {

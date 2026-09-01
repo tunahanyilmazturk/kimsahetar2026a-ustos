@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { UserPlus, UserRoundX, Users, Wifi, Loader2, Check, X, Clock, UserCheck, Inbox } from 'lucide-react'
+import { UserPlus, UserRoundX, Users, Wifi, Loader2, Check, X, Clock, UserCheck, Inbox, Gamepad2, DoorOpen } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { Avatar } from '../common/Avatar'
@@ -16,15 +16,28 @@ interface Friend {
   created_at: string
 }
 
-type Tab = 'friends' | 'requests'
+interface RoomInvite {
+  id: string
+  room_id: string
+  room_code: string
+  inviter_id: string
+  inviter_name: string
+  inviter_avatar: string
+  status: 'pending' | 'accepted' | 'rejected' | 'expired'
+  created_at: string
+}
 
-export function SocialModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+type Tab = 'friends' | 'requests' | 'invites'
+
+export function SocialModal({ open, onClose, onJoinRoom }: { open: boolean; onClose: () => void; onJoinRoom?: (roomCode: string) => void }) {
   const [tab, setTab] = useState<Tab>('friends')
   const [friends, setFriends] = useState<Friend[]>([])
+  const [roomInvites, setRoomInvites] = useState<RoomInvite[]>([])
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [acting, setActing] = useState<string | null>(null) // işlem yapılan friend_id
+  const [inviteActing, setInviteActing] = useState<string | null>(null)
   const toast = useToast()
 
   // ─── Load friends + requests ─────────────────────────────────────────────
@@ -107,35 +120,101 @@ export function SocialModal({ open, onClose }: { open: boolean; onClose: () => v
     setLoading(false)
   }, [])
 
+  // ─── Load room invites ────────────────────────────────────────────────────
+  const loadRoomInvites = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: invites } = await supabase
+      .from('room_invites')
+      .select('id, room_id, room_code, inviter_id, status, created_at')
+      .eq('invitee_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+
+    if (!invites || invites.length === 0) {
+      setRoomInvites([])
+      return
+    }
+
+    const inviterIds = [...new Set(invites.map((i) => i.inviter_id))]
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar')
+      .in('id', inviterIds)
+    const { data: inv } = await supabase
+      .from('inventory')
+      .select('user_id, equipped_avatar')
+      .in('user_id', inviterIds)
+    const equippedMap = new Map<string, string>()
+    for (const i of inv ?? []) equippedMap.set(i.user_id, i.equipped_avatar)
+
+    // Oda hala aktif mi kontrol et
+    const roomIds = [...new Set(invites.map((i) => i.room_id))]
+    const { data: rooms } = await supabase
+      .from('rooms')
+      .select('id, state')
+      .in('id', roomIds)
+    const activeRoomIds = new Set((rooms ?? []).filter((r) => r.state === 'LOBBY').map((r) => r.id))
+
+    const inviteList: RoomInvite[] = []
+    for (const inv of invites) {
+      // Oda artık aktif değilse daveti expired işaretle
+      if (!activeRoomIds.has(inv.room_id)) {
+        await supabase.from('room_invites').update({ status: 'expired' }).eq('id', inv.id)
+        continue
+      }
+      const p = profiles?.find((pr) => pr.id === inv.inviter_id)
+      if (!p) continue
+      inviteList.push({
+        id: inv.id,
+        room_id: inv.room_id,
+        room_code: inv.room_code,
+        inviter_id: inv.inviter_id,
+        inviter_name: p.username,
+        inviter_avatar: equippedMap.get(p.id) ?? p.avatar,
+        status: inv.status as RoomInvite['status'],
+        created_at: inv.created_at,
+      })
+    }
+    setRoomInvites(inviteList)
+  }, [])
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
     void (async () => {
       if (!cancelled) setLoading(true)
-      await loadFriends()
+      await Promise.all([loadFriends(), loadRoomInvites()])
     })()
     return () => { cancelled = true }
-  }, [open, loadFriends])
+  }, [open, loadFriends, loadRoomInvites])
 
-  // ─── Realtime: friends değişince yeniden yükle ───────────────────────────
+  // ─── Realtime: friends + room_invites değişince yeniden yükle ─────────────
   useEffect(() => {
     if (!open) return
     const channel = supabase
-      .channel('friends_changes')
+      .channel('social_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'friends' },
         () => { void loadFriends() },
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'room_invites' },
+        () => { void loadRoomInvites() },
+      )
       .subscribe()
 
     return () => { void supabase.removeChannel(channel) }
-  }, [open, loadFriends])
+  }, [open, loadFriends, loadRoomInvites])
 
   // ─── Derived values ──────────────────────────────────────────────────────
   const acceptedFriends = friends.filter((f) => f.status === 'accepted')
   const pendingReceived = friends.filter((f) => f.status === 'pending' && f.direction === 'received')
   const pendingSent = friends.filter((f) => f.status === 'pending' && f.direction === 'sent')
+  const pendingRoomInvites = roomInvites.filter((i) => i.status === 'pending')
 
   // ─── Send friend request ─────────────────────────────────────────────────
   const sendRequest = async () => {
@@ -342,6 +421,44 @@ export function SocialModal({ open, onClose }: { open: boolean; onClose: () => v
     }
   }
 
+  // ─── Accept room invite (odaya katıl) ─────────────────────────────────────
+  const acceptRoomInvite = async (invite: RoomInvite) => {
+    setInviteActing(invite.id)
+    try {
+      await supabase
+        .from('room_invites')
+        .update({ status: 'accepted' })
+        .eq('id', invite.id)
+
+      toast.success(`${invite.inviter_name} odasına katılınıyor...`)
+      setRoomInvites(roomInvites.filter((i) => i.id !== invite.id))
+      onClose()
+      onJoinRoom?.(invite.room_code)
+    } catch {
+      toast.error('Odaya katılınamadı')
+    } finally {
+      setInviteActing(null)
+    }
+  }
+
+  // ─── Reject room invite ───────────────────────────────────────────────────
+  const rejectRoomInvite = async (inviteId: string) => {
+    setInviteActing(inviteId)
+    try {
+      await supabase
+        .from('room_invites')
+        .update({ status: 'rejected' })
+        .eq('id', inviteId)
+
+      setRoomInvites(roomInvites.filter((i) => i.id !== inviteId))
+      toast.info('Oda daveti reddedildi')
+    } catch {
+      toast.error('Reddedilemedi')
+    } finally {
+      setInviteActing(null)
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Sosyal" size="md">
       <div className="space-y-4">
@@ -403,6 +520,20 @@ export function SocialModal({ open, onClose }: { open: boolean; onClose: () => v
               <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{pendingReceived.length}</span>
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => setTab('invites')}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors',
+              tab === 'invites' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200',
+            )}
+          >
+            <Gamepad2 className="h-3.5 w-3.5" />
+            Davetler
+            {pendingRoomInvites.length > 0 && (
+              <span className="rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white">{pendingRoomInvites.length}</span>
+            )}
+          </button>
         </div>
 
         {/* ─── İçerik ──────────────────────────────────────────────────── */}
@@ -441,7 +572,7 @@ export function SocialModal({ open, onClose }: { open: boolean; onClose: () => v
               ))
             )}
           </div>
-        ) : (
+        ) : tab === 'requests' ? (
           /* ─── İstekler listesi ── */
           <div className="space-y-3">
             {/* Bana gelen istekler */}
@@ -515,6 +646,49 @@ export function SocialModal({ open, onClose }: { open: boolean; onClose: () => v
               <div className="rounded-xl bg-slate-800/50 px-4 py-8 text-center text-sm text-slate-500">
                 Bekleyen arkadaşlık isteği yok.
               </div>
+            )}
+          </div>
+        ) : (
+          /* ─── Oda davetleri listesi ── */
+          <div className="space-y-2">
+            {pendingRoomInvites.length === 0 ? (
+              <div className="rounded-xl bg-slate-800/50 px-4 py-8 text-center text-sm text-slate-500">
+                Aktif oda davetin yok. Arkadaşların seni oyuna davet ettiğinde burada görünecek.
+              </div>
+            ) : (
+              pendingRoomInvites.map((invite) => (
+                <div key={invite.id} className="flex items-center gap-3 rounded-xl bg-emerald-500/10 px-3 py-3 ring-1 ring-emerald-500/20">
+                  <Avatar avatarId={invite.inviter_avatar} size="sm" hideFrame />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm text-slate-200">
+                      <span className="font-semibold text-emerald-300">{invite.inviter_name}</span>
+                      {' '}seni odaya davet etti
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <Gamepad2 className="h-3 w-3" />
+                      Oda kodu: <span className="font-mono font-semibold text-cyan-300">{invite.room_code}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => acceptRoomInvite(invite)}
+                    disabled={inviteActing === invite.id}
+                    aria-label="Odaya katıl"
+                    className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50"
+                  >
+                    {inviteActing === invite.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><DoorOpen className="h-3.5 w-3.5" /> Katıl</>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rejectRoomInvite(invite.id)}
+                    disabled={inviteActing === invite.id}
+                    aria-label="Reddet"
+                    className="rounded-lg bg-rose-500/20 p-2 text-rose-300 hover:bg-rose-500/30 disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
             )}
           </div>
         )}

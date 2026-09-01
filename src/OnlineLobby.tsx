@@ -70,9 +70,13 @@ function generateRoomCode(): string {
 export function OnlineLobby({
   onExit,
   onEnterRoom,
+  initialJoinCode,
+  onJoined,
 }: {
   onExit: () => void
   onEnterRoom: (info: { roomId: string; roomCode: string }) => void
+  initialJoinCode?: string | null
+  onJoined?: () => void
 }) {
   const [roomCode, setRoomCode] = useState('')
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
@@ -100,6 +104,14 @@ export function OnlineLobby({
       if (user) setMyUserId(user.id)
     })
   }, [])
+
+  // ─── İlk açılışta oda kodu verilmişse otomatik katıl ──────────────────────
+  const joinedRef = useRef(false)
+  useEffect(() => {
+    if (!initialJoinCode || !myUserId || joinedRef.current || activeRoomId) return
+    joinedRef.current = true
+    void joinRoom(initialJoinCode).then(() => onJoined?.())
+  }, [initialJoinCode, myUserId, activeRoomId, onJoined])
 
   // ─── Realtime subscription ────────────────────────────────────────────────
   const refreshPlayersRef = useRef<(() => Promise<void>) | null>(null)
@@ -470,13 +482,28 @@ export function OnlineLobby({
 
   // ─── Arkadaşı odaya davet et ─────────────────────────────────────────────
   const inviteFriend = async (friend: FriendForInvite) => {
-    if (!activeRoom) return
-    const inviteText = `Sahtekar Kim? oynamaya davetlisin! Oda kodu: ${activeRoom} — ${window.location.origin}`
+    if (!activeRoom || !activeRoomId || !myUserId) return
     try {
-      await navigator.clipboard?.writeText(inviteText)
-      toast.success(`${friend.username} için davet kodu kopyalandı — paylaş!`)
+      // room_invites tablosuna kayıt ekle
+      const { error } = await supabase.from('room_invites').insert({
+        room_id: activeRoomId,
+        room_code: activeRoom,
+        inviter_id: myUserId,
+        invitee_id: friend.user_id,
+        status: 'pending',
+      })
+      if (error) {
+        // Zaten davet edilmiş olabilir
+        if (error.code === '23505') {
+          toast.info(`${friend.username} zaten davet edilmiş`)
+        } else {
+          toast.error('Davet gönderilemedi: ' + error.message)
+        }
+        return
+      }
+      toast.success(`${friend.username} odaya davet edildi`)
     } catch {
-      toast.error('Kopyalanamadı')
+      toast.error('Davet gönderilemedi')
     }
   }
 

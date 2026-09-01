@@ -36,9 +36,11 @@ export interface MainMenuPanelProps {
   /** Offline oyun başlatıldığında çağrılır. */
   onPlay: () => void
   onOnline: () => void
+  /** Oda daveti kabul edildiğinde çağrılır — online ekrana geç + odaya katıl */
+  onJoinRoom?: (roomCode: string) => void
 }
 
-export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
+export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelProps) {
   const { profile, inventory } = useProfile()
   const { canInstall, promptInstall } = usePwaInstall()
   const toast = useToast()
@@ -49,26 +51,38 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [socialOpen, setSocialOpen] = useState(false)
   const [pendingRequests, setPendingRequests] = useState(0)
+  const [pendingRoomInvites, setPendingRoomInvites] = useState(0)
 
-  // Pending arkadaş isteklerini yükle
+  // Pending arkadaş isteklerini + oda davetlerini yükle
   useEffect(() => {
     let cancelled = false
     const loadPending = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || cancelled) return
-      const { count } = await supabase
-        .from('friends')
-        .select('*', { count: 'exact', head: true })
-        .eq('friend_id', user.id)
-        .eq('status', 'pending')
-      if (!cancelled) setPendingRequests(count ?? 0)
+      const [friendsRes, invitesRes] = await Promise.all([
+        supabase
+          .from('friends')
+          .select('*', { count: 'exact', head: true })
+          .eq('friend_id', user.id)
+          .eq('status', 'pending'),
+        supabase
+          .from('room_invites')
+          .select('*', { count: 'exact', head: true })
+          .eq('invitee_id', user.id)
+          .eq('status', 'pending'),
+      ])
+      if (!cancelled) {
+        setPendingRequests(friendsRes.count ?? 0)
+        setPendingRoomInvites(invitesRes.count ?? 0)
+      }
     }
     void loadPending()
 
-    // Realtime: friends değişince yeniden yükle
+    // Realtime: friends + room_invites değişince yeniden yükle
     const channel = supabase
       .channel('pending_requests')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => void loadPending())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_invites' }, () => void loadPending())
       .subscribe()
 
     return () => { cancelled = true; void supabase.removeChannel(channel) }
@@ -127,7 +141,7 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
         <div className="fixed inset-x-3 bottom-[5.25rem] z-50 mx-auto max-w-md rounded-2xl border border-indigo-400/25 bg-slate-900 p-3 shadow-2xl shadow-black/50 sm:hidden">
           <div className="mb-2 flex items-center justify-between px-1"><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Tüm menüler</p><button type="button" onClick={() => setQuickMenuOpen(false)} aria-label="Menüyü kapat" className="rounded-lg p-2 text-slate-400 hover:bg-slate-800"><X className="h-4 w-4" /></button></div>
           <div className="grid grid-cols-2 gap-2">
-            <QuickMenuButton icon={<Users className="h-4 w-4 text-cyan-300" />} label="Sosyal" badge={pendingRequests} onClick={() => { setQuickMenuOpen(false); setSocialOpen(true) }} />
+            <QuickMenuButton icon={<Users className="h-4 w-4 text-cyan-300" />} label="Sosyal" badge={pendingRequests + pendingRoomInvites} onClick={() => { setQuickMenuOpen(false); setSocialOpen(true) }} />
             <QuickMenuButton icon={<Trophy className="h-4 w-4 text-amber-300" />} label="Liderlik" onClick={() => { setQuickMenuOpen(false); setLeaderboardOpen(true) }} />
             <QuickMenuButton icon={<Award className="h-4 w-4 text-fuchsia-300" />} label="Başarımlar" onClick={() => { setQuickMenuOpen(false); setAchievementsOpen(true) }} />
             <QuickMenuButton icon={<SettingsIcon className="h-4 w-4 text-slate-300" />} label="Ayarlar" onClick={() => { setQuickMenuOpen(false); setSettingsOpen(true) }} />
@@ -246,9 +260,9 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
           <Button size="md" variant="secondary" fullWidth onClick={() => setSocialOpen(true)}>
             <Users className="h-4 w-4 text-cyan-300" />
             Sosyal
-            {pendingRequests > 0 && (
+            {(pendingRequests + pendingRoomInvites) > 0 && (
               <span className="ml-1 inline-flex items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {pendingRequests}
+                {pendingRequests + pendingRoomInvites}
               </span>
             )}
           </Button>
@@ -296,7 +310,7 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
       <DailyQuestsModal open={questsOpen} onClose={() => setQuestsOpen(false)} />
       <LeaderboardModal open={leaderboardOpen} onClose={() => setLeaderboardOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={() => window.location.reload()} />
-      <SocialModal open={socialOpen} onClose={() => setSocialOpen(false)} />
+      <SocialModal open={socialOpen} onClose={() => setSocialOpen(false)} onJoinRoom={onJoinRoom} />
     </div>
   )
 }
