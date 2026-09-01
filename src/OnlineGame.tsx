@@ -770,10 +770,10 @@ function RoleCard({ isImpostor, word, category }: { isImpostor: boolean; word: s
         )}
         <div>
           <p className={cn('text-sm font-bold', isImpostor ? 'text-rose-300' : 'text-emerald-300')}>
-            {isImpostor ? 'Sen sahtekarsın!' : 'Sen normal oyuncusun'}
+            {isImpostor ? 'Sen sahtekarsın!' : 'Sen vatandaşsın!'}
           </p>
           {isImpostor ? (
-            <p className="mt-1 text-xs text-slate-400">Kelimeyi bilmiyorsun — ipuçlarından tahmin etmeye çalış, yakalanma!</p>
+            <p className="mt-1 text-xs text-slate-400">Kelimeyi bilmiyorsun — ipuçlarından tahmin et, yakalanma!</p>
           ) : (
             <>
               <p className="mt-1 text-lg font-bold text-cyan-300">{word}</p>
@@ -808,21 +808,10 @@ function RevealPhase({
   const [revealed, setRevealed] = useState(false)
   const [iAmReady, setIAmReady] = useState(false)
 
-  // Botlar otomatik hazır
-  useEffect(() => {
-    const botPlayers = players.filter((p) => p.is_bot)
-    if (botPlayers.length > 0 && !botPlayers.every((p) => p.is_ready)) {
-      // Botları hazır yap
-      void (async () => {
-        for (const bot of botPlayers) {
-          if (bot.user_id.startsWith('bot-')) continue // botlar zaten ready
-        }
-      })()
-    }
-  }, [players])
-
-  // Tüm oyuncular hazır mı?
-  const allRevealed = players.length > 0 && players.every((p) => p.is_ready || p.is_bot)
+  // Tüm oyuncular hazır mı? (local iAmReady + DB is_ready + botlar)
+  const allRevealed = players.length > 0 && players.every((p) =>
+    p.is_ready || p.is_bot || (p.user_id === myUserId && iAmReady)
+  )
 
   // Host tüm oyuncular hazır olunca PLAYING'e geç
   useEffect(() => {
@@ -843,7 +832,7 @@ function RevealPhase({
   }
 
   const myPlayer = players.find((p) => p.user_id === myUserId)
-  const readyCount = players.filter((p) => p.is_ready || p.is_bot).length
+  const readyCount = players.filter((p) => p.is_ready || p.is_bot || (p.user_id === myUserId && iAmReady)).length
 
   return (
     <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
@@ -914,7 +903,7 @@ function RevealPhase({
                   </div>
                   <h3 className="text-xl font-bold text-rose-300 mb-2">Sen Sahtekarsın!</h3>
                   <p className="text-sm text-rose-200/80 mb-4">
-                    Kelimeyi bilmiyorsun. Diğer oyuncuların ipuçlarından kelimeyi tahmin etmeye çalış.
+                    Kelimeyi bilmiyorsun. Diğer vatandaşların ipuçlarından kelimeyi tahmin etmeye çalış.
                     Yakalanma!
                   </p>
                   <div className="rounded-xl bg-slate-950/50 px-4 py-3 ring-1 ring-rose-500/30">
@@ -928,7 +917,7 @@ function RevealPhase({
                   <div className="mb-3 flex justify-center">
                     <Sparkles className="h-12 w-12 text-indigo-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-indigo-300 mb-2">Sen Oyuncusun</h3>
+                  <h3 className="text-xl font-bold text-indigo-300 mb-2">Sen Vatandaşsın</h3>
                   <div className="rounded-xl bg-slate-950/50 px-4 py-4 ring-1 ring-indigo-500/30 mb-3">
                     <p className="text-xs text-slate-400 mb-1">Kelime</p>
                     <p className="text-2xl font-bold text-slate-100 mb-2">{room.current_word ?? '?'}</p>

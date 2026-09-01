@@ -596,12 +596,12 @@ export function OnlineLobby({
     })
     const impostorId = pickImpostor(allIds)
 
-    // Seat numaralarını ata — botlar için bot_name, gerçek oyuncular için user_id
+    // Seat numaralarını ata — botlar hazır, gerçek oyuncular hazır değil
     for (let i = 0; i < players.length; i++) {
       const p = players[i]
       if (p.is_bot) {
         await supabase.from('room_players')
-          .update({ seat: i, passed: false, is_ready: false })
+          .update({ seat: i, passed: false, is_ready: true })
           .eq('room_id', activeRoomId)
           .eq('bot_name', p.username)
       } else {
