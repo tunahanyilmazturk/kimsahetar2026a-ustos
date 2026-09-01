@@ -642,7 +642,7 @@ export function OnlineLobby({
       room_id: activeRoomId,
       user_id: myUserId,
       player_name: 'Sistem',
-      text: 'Oyun başladı! Roller dağıtılıyor...',
+      text: `Tur 1 başladı — ${players.length} oyuncu. İpuçları veriliyor!`,
       message_type: 'system',
     })
 

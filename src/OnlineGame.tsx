@@ -808,9 +808,13 @@ function RevealPhase({
   const [revealed, setRevealed] = useState(false)
   const [iAmReady, setIAmReady] = useState(false)
 
-  // Tüm oyuncular hazır mı? (local iAmReady + DB is_ready + botlar)
-  const allRevealed = players.length > 0 && players.every((p) =>
-    p.is_ready || p.is_bot || (p.user_id === myUserId && iAmReady)
+  // Tüm oyuncular hazır mı?
+  // - Benim için: local iAmReady (DB is_ready lobiden kalan true olabilir, güvenme)
+  // - Diğer gerçek oyuncular için: DB is_ready
+  // - Botlar: otomatik hazır
+  const realPlayers = players.filter((p) => !p.is_bot)
+  const allRevealed = realPlayers.length > 0 && realPlayers.every((p) =>
+    (p.user_id === myUserId && iAmReady) || (p.user_id !== myUserId && p.is_ready)
   )
 
   // Host tüm oyuncular hazır olunca PLAYING'e geç
@@ -832,7 +836,9 @@ function RevealPhase({
   }
 
   const myPlayer = players.find((p) => p.user_id === myUserId)
-  const readyCount = players.filter((p) => p.is_ready || p.is_bot || (p.user_id === myUserId && iAmReady)).length
+  const readyCount = realPlayers.filter((p) =>
+    (p.user_id === myUserId && iAmReady) || (p.user_id !== myUserId && p.is_ready)
+  ).length + players.filter((p) => p.is_bot).length
 
   return (
     <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center justify-center px-6 py-8">
@@ -1047,27 +1053,37 @@ function PlayingPhase({
 
   return (
     <div className="flex h-svh w-full flex-col bg-slate-950 text-slate-100">
-      {/* ─── Header (sabit) ───────────────────────────────────────────── */}
-      <div className="shrink-0 border-b border-slate-800 px-4 py-3">
-        <div className="mx-auto flex w-full max-w-md items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-400">Tur {room.round}</span>
-            <span className="text-xs text-slate-500">·</span>
-            <span className="text-xs text-slate-400">{players.length} oyuncu</span>
-          </div>
-          <div className="flex items-center gap-2">
+      {/* ─── Header (sabit) — Tur + Sıra + Timer ─────────────────────── */}
+      <div className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-2.5">
+        <div className="mx-auto w-full max-w-md">
+          {/* Üst satır: Tur + Oyuncu sayısı + Timer */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-lg bg-indigo-500/20 px-2 py-0.5 text-xs font-bold text-indigo-300">Tur {room.round}</span>
+              <span className="text-xs text-slate-500">{players.length} oyuncu</span>
+            </div>
             {timeLeft > 0 && (
-              <span className={cn('flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold', timeLeft <= 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-indigo-500/20 text-indigo-300')}>
-                <Clock className="h-3 w-3" /> {timeLeft}s
+              <span className={cn('flex items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums', timeLeft <= 5 ? 'bg-rose-500/20 text-rose-300 animate-pulse' : 'bg-slate-800 text-indigo-300')}>
+                <Clock className="h-4 w-4" /> {timeLeft}s
               </span>
             )}
-            {/* Sıra göstergesi */}
-            <div className="flex items-center gap-1.5">
-              <Avatar avatarId={currentTurnPlayer?.avatar ?? 'avatar_default'} size="sm" hideFrame />
-              <span className={cn('text-xs font-medium', isMyTurn ? 'text-indigo-300' : 'text-slate-400')}>
-                {isMyTurn ? 'Senin sıran!' : currentTurnPlayer?.username}
-              </span>
+          </div>
+          {/* Alt satır: Sıra kimde — belirgin banner */}
+          <div className={cn(
+            'mt-2 flex items-center gap-2 rounded-xl px-3 py-2 ring-1',
+            isMyTurn ? 'bg-indigo-500/15 ring-indigo-500/40' : 'bg-slate-800/50 ring-slate-700',
+          )}>
+            <Avatar avatarId={currentTurnPlayer?.avatar ?? 'avatar_default'} size="sm" hideFrame />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500">Sıra</p>
+              <p className={cn('text-sm font-bold truncate', isMyTurn ? 'text-indigo-300' : 'text-slate-200')}>
+                {currentTurnPlayer?.username ?? '...'}
+                {isMyTurn && ' — Senin sıran! 🎯'}
+              </p>
             </div>
+            {isMyTurn && !hasPassed && (
+              <span className="rounded-lg bg-indigo-500/30 px-2 py-1 text-[10px] font-bold text-indigo-200">İPUCU VER</span>
+            )}
           </div>
         </div>
       </div>
