@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
-import { Coins, Check, Lock, User, Award, Sparkles, ShoppingBag, Shield, Gem, Copy } from 'lucide-react'
+import { Coins, Check, Lock, User, Award, Sparkles, ShoppingBag, Shield, Gem, Copy, TrendingUp, Flame, Target, Skull, Eye, Trophy, Zap, Gamepad2 } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { Avatar, RarityBadge } from '../common/Avatar'
@@ -10,7 +10,7 @@ import { ALL_AVATARS, AVATAR_MAP } from '../../config/customShopAvatars'
 import { AVATAR_FRAMES, AVATAR_FRAME_MAP } from '../../config/avatarFrames'
 import { ACHIEVEMENTS } from '../../config/achievements'
 import { achievementsApi } from '../../lib/achievementsApi'
-import { statsApi } from '../../lib/profileApi'
+import { statsApi, xpForLevel, xpForLevelStart, MAX_LEVEL } from '../../lib/profileApi'
 import { cn } from '../../utils/cn'
 
 type Tab = 'profile' | 'avatars' | 'frames' | 'achievements'
@@ -36,9 +36,20 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   const [nameDraft, setNameDraft] = useState(profile.username)
   const ownedAvatars = inventory.avatars.length
   const ownedFrames = inventory.frames.length
-  const xpInLevel = profile.xp % 100
   const stats = statsApi.get()
   const winRate = stats.gamesPlayed ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0
+  const impostorWinRate = stats.winsAsImpostor > 0 && stats.gamesPlayed > 0
+    ? Math.round((stats.winsAsImpostor / stats.gamesPlayed) * 100) : 0
+  const playerWinRate = stats.winsAsPlayer > 0 && stats.gamesPlayed > 0
+    ? Math.round((stats.winsAsPlayer / stats.gamesPlayed) * 100) : 0
+  // XP bar — yeni progresyona göre
+  const isMaxLevel = profile.level >= MAX_LEVEL
+  const xpNeeded = isMaxLevel ? 0 : xpForLevel(profile.level)
+  const xpStart = xpForLevelStart(profile.level)
+  const xpInLevel = isMaxLevel ? 0 : profile.xp - xpStart
+  const xpProgress = isMaxLevel ? 100 : xpNeeded > 0 ? Math.min(100, Math.round((xpInLevel / xpNeeded) * 100)) : 0
+  // Mağlubiyet
+  const losses = stats.gamesPlayed - stats.wins
 
   const handleSaveName = () => {
     const trimmed = nameDraft.trim()
@@ -106,9 +117,16 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
             <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-indigo-300" /> Seviye ilerlemesi</span>
-            <span>{xpInLevel}/100 XP</span>
+            <span>{isMaxLevel ? 'MAX Seviye' : `${xpInLevel}/${xpNeeded} XP`}</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-slate-950/70"><div className="h-full rounded-full bg-linear-to-r from-indigo-400 to-fuchsia-400" style={{ width: `${xpInLevel}%` }} /></div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-950/70">
+            <div className="h-full rounded-full bg-linear-to-r from-indigo-400 to-fuchsia-400 transition-all" style={{ width: `${xpProgress}%` }} />
+          </div>
+          {!isMaxLevel && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              Bir sonraki seviyeye {xpNeeded - xpInLevel} XP
+            </p>
+          )}
         </div>
         </div>
       </div>
@@ -187,13 +205,60 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <Stat label="Oyun" value={stats.gamesPlayed} />
-            <Stat label="Galibiyet" value={stats.wins} />
-            <Stat label="Kazanma" value={`%${winRate}`} />
-            <Stat label="Sahtekar" value={stats.winsAsImpostor} />
-            <Stat label="Dedektif" value={stats.winsAsPlayer} />
-            <Stat label="En iyi seri" value={stats.bestStreak} />
+          {/* ─── Detaylı İstatistik Paneli ─────────────────────────────── */}
+          <div className="rounded-xl border border-slate-700/70 bg-slate-800/40 p-3">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Oyun İstatistikleri</p>
+
+            {/* Üst satır — ana metrikler */}
+            <div className="grid grid-cols-4 gap-2">
+              <StatCard icon={Trophy} label="Galibiyet" value={stats.wins} color="text-amber-300" />
+              <StatCard icon={Target} label="Mağlubiyet" value={losses} color="text-rose-300" />
+              <StatCard icon={TrendingUp} label="Kazanma %" value={`%${winRate}`} color="text-emerald-300" />
+              <StatCard icon={Gamepad2} label="Oyun" value={stats.gamesPlayed} color="text-indigo-300" />
+            </div>
+
+            {/* Orta satır — rol bazlı */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2 ring-1 ring-slate-700/50">
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Skull className="h-3 w-3 text-rose-400" />
+                  <span>Sahtekar Galibiyeti</span>
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-rose-300 tabular-nums">{stats.winsAsImpostor}</span>
+                  <span className="text-[10px] text-slate-500">(%{impostorWinRate} oran)</span>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2 ring-1 ring-slate-700/50">
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Eye className="h-3 w-3 text-cyan-400" />
+                  <span>Dedektif Galibiyeti</span>
+                </div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-cyan-300 tabular-nums">{stats.winsAsPlayer}</span>
+                  <span className="text-[10px] text-slate-500">(%{playerWinRate} oran)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Alt satır — seri ve puan */}
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2 text-center ring-1 ring-slate-700/50">
+                <Flame className="mx-auto h-3.5 w-3.5 text-orange-400" />
+                <p className="mt-1 text-lg font-bold text-orange-300 tabular-nums">{stats.streak}</p>
+                <p className="text-[10px] text-slate-500">Aktif Seri</p>
+              </div>
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2 text-center ring-1 ring-slate-700/50">
+                <Zap className="mx-auto h-3.5 w-3.5 text-yellow-400" />
+                <p className="mt-1 text-lg font-bold text-yellow-300 tabular-nums">{stats.bestStreak}</p>
+                <p className="text-[10px] text-slate-500">En İyi Seri</p>
+              </div>
+              <div className="rounded-lg bg-slate-900/60 px-3 py-2 text-center ring-1 ring-slate-700/50">
+                <Trophy className="mx-auto h-3.5 w-3.5 text-amber-400" />
+                <p className="mt-1 text-lg font-bold text-amber-300 tabular-nums">{stats.points}</p>
+                <p className="text-[10px] text-slate-500">Toplam Puan</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-xl border border-slate-700/70 bg-slate-800/40 p-3">
@@ -406,6 +471,16 @@ function Stat({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700 px-3 py-2.5">
       <p className="text-xs text-slate-400">{label}</p>
       <p className="font-semibold text-slate-100 truncate">{value}</p>
+    </div>
+  )
+}
+
+function StatCard({ icon: Icon, label, value, color }: { icon: typeof Trophy; label: string; value: string | number; color: string }) {
+  return (
+    <div className="rounded-lg bg-slate-900/60 px-2 py-2 text-center ring-1 ring-slate-700/50">
+      <Icon className={cn('mx-auto h-3.5 w-3.5', color)} />
+      <p className={cn('mt-1 text-sm font-bold tabular-nums', color)}>{value}</p>
+      <p className="text-[9px] text-slate-500">{label}</p>
     </div>
   )
 }

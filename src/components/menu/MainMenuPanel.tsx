@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   LogOut,
+  Flame,
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import { Avatar } from '../common/Avatar'
@@ -23,6 +24,7 @@ import { usePwaInstall } from '../../hooks/usePwaInstall'
 import { questsApi } from '../../lib/questsApi'
 import { authApi } from '../../lib/authApi'
 import { supabase } from '../../lib/supabase'
+import { statsApi } from '../../lib/profileApi'
 import { MarketProfileModal } from './MarketProfileModal'
 import { AchievementsModal } from './AchievementsModal'
 import { DailyQuestsModal } from './DailyQuestsModal'
@@ -185,7 +187,22 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
               {profile.coins}
             </span>
             <span className="text-slate-600">•</span>
-            <span className="font-mono text-[10px] text-cyan-400/70">{profile.playerId}</span>
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <Trophy className="h-3 w-3" />
+              {statsApi.get().points} puan
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-500">
+            <span>{statsApi.get().wins}G</span>
+            <span className="text-slate-700">·</span>
+            <span>{statsApi.get().gamesPlayed} oyun</span>
+            <span className="text-slate-700">·</span>
+            <span className="inline-flex items-center gap-0.5">
+              <Flame className="h-2.5 w-2.5 text-orange-400" />
+              {statsApi.get().streak} seri
+            </span>
+            <span className="text-slate-700">·</span>
+            <span className="font-mono text-cyan-400/60">{profile.playerId}</span>
           </div>
         </div>
         <User className="h-5 w-5 text-slate-500" />
