@@ -520,7 +520,12 @@ export function OnlineLobby({
   }
 
   // ─── Bot ekle ────────────────────────────────────────────────────────────
-  const BOT_NAMES = ['Ali', 'Ayşe', 'Mehmet', 'Zeynep', 'Can', 'Elif', 'Burak', 'Selin', 'Emre', 'Deniz']
+  const BOT_NAMES = [
+    'Dedektif Conan', 'Şüpheci Şener', 'Kurnaz Kerem', 'Sırıtan Seda',
+    'Gizemli Gökhan', 'Poker Yüzü Pınar', 'Sahtekar Selami', 'İpucu İbo',
+    'Maskeli Meltem', 'Yalancı Yavuz', 'Dedektif Dexter', 'Sinsi Sibel',
+    'Kafa Karıştıran Kenan', 'Rol Yapıcı Rana', 'Blöfcü Berkay', 'Sır Küpü Sema',
+  ]
   const BOT_AVATARS = ['avatar_01', 'avatar_02', 'avatar_03', 'avatar_04', 'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08']
 
   const addBot = async (difficulty: 'EASY' | 'SMART' | 'EXPERT') => {
