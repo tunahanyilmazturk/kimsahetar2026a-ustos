@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   ArrowLeft, Send, Clock, Eye, EyeOff, Crown, Check,
   Loader2, AlertTriangle, Trophy, Skull, Sparkles,
+  MessageSquare, Settings as SettingsIcon,
 } from 'lucide-react'
 import { Button } from './components/common/Button'
 import { Avatar } from './components/common/Avatar'
@@ -35,7 +36,7 @@ interface ChatMsg {
   user_id: string
   player_name: string
   text: string
-  message_type: 'hint' | 'system'
+  message_type: 'hint' | 'system' | 'chat'
   created_at: string
 }
 
@@ -556,89 +557,28 @@ export function OnlineGame({
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // PLAYING STATE — Hints
+  // PLAYING STATE — Alt bar + sekmeli yapı
   // ═══════════════════════════════════════════════════════════════════════
   if (room.state === 'PLAYING') {
     return (
-      <div className="min-h-svh w-full bg-slate-950 px-4 py-6 text-slate-100">
-        <div className="mx-auto w-full max-w-md">
-          {/* Header */}
-          <div className="mb-4 flex items-center justify-between">
-            <button type="button" onClick={leaveRoom} className="flex min-h-11 items-center gap-2 text-slate-400 hover:text-white">
-              <ArrowLeft className="h-5 w-5" /> Çık
-            </button>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-400">Tur {room.round}</span>
-              {timeLeft > 0 && (
-                <span className={cn('flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold', timeLeft <= 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-indigo-500/20 text-indigo-300')}>
-                  <Clock className="h-3 w-3" /> {timeLeft}s
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Role card */}
-          <RoleCard isImpostor={isImpostor} word={room.current_word ?? ''} category={room.current_category ?? ''} />
-
-          {/* Turn indicator */}
-          <div className="mt-4 rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
-            <p className="text-xs text-slate-400">Sıra:</p>
-            <div className="mt-1 flex items-center gap-2">
-              <Avatar avatarId={currentTurnPlayer?.avatar ?? 'avatar_default'} size="sm" hideFrame />
-              <span className="font-semibold text-slate-100">{currentTurnPlayer?.username}</span>
-              {isMyTurn && <span className="text-xs text-indigo-300">(sen)</span>}
-            </div>
-          </div>
-
-          {/* Chat / Hints */}
-          <div className="mt-4 max-h-[40vh] space-y-2 overflow-y-auto rounded-xl bg-slate-900/50 p-3 ring-1 ring-slate-800">
-            {chat.length === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-500">İpuçları burada görünecek...</p>
-            ) : (
-              chat.map((msg) => (
-                <div key={msg.id} className={cn('rounded-lg px-3 py-2 text-sm', msg.message_type === 'system' ? 'bg-slate-800/50 text-center text-xs text-slate-500' : 'bg-slate-800')}>
-                  {msg.message_type === 'hint' && <span className="font-semibold text-indigo-300">{msg.player_name}: </span>}
-                  {msg.text}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Input */}
-          {isMyTurn && !players.find((p) => p.user_id === myUserId)?.passed ? (
-            <div className="mt-4 flex gap-2">
-              <input
-                value={hintText}
-                onChange={(e) => setHintText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendHint()}
-                placeholder="İpucun..."
-                maxLength={100}
-                aria-label="İpucu"
-                className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 text-sm ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400"
-              />
-              <Button onClick={sendHint} disabled={!hintText.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-              <Button variant="secondary" onClick={passTurn}>
-                Pas
-              </Button>
-            </div>
-          ) : (
-            <p className="mt-4 text-center text-xs text-slate-500">
-              {isMyTurn ? 'Pas geçtin, sıra bekleniyor...' : `${currentTurnPlayer?.username} ipucu veriyor...`}
-            </p>
-          )}
-
-          {/* Host: force voting */}
-          {isHost && (
-            <Button variant="secondary" fullWidth className="mt-4" onClick={() => {
-              void supabase.from('rooms').update({ state: 'VOTING' }).eq('id', roomId)
-            }}>
-              <AlertTriangle className="h-4 w-4" /> Oylamaya Geç
-            </Button>
-          )}
-        </div>
-      </div>
+      <PlayingPhase
+        room={room}
+        players={players}
+        chat={chat}
+        votes={votes}
+        myUserId={myUserId}
+        isImpostor={isImpostor}
+        isHost={isHost}
+        currentTurnPlayer={currentTurnPlayer}
+        isMyTurn={isMyTurn}
+        hintText={hintText}
+        setHintText={setHintText}
+        sendHint={sendHint}
+        passTurn={passTurn}
+        timeLeft={timeLeft}
+        roomId={roomId}
+        onLeave={leaveRoom}
+      />
     )
   }
 
@@ -1033,6 +973,309 @@ function RevealPhase({
           Odadan Çık
         </button>
       </motion.div>
+    </div>
+  )
+}
+
+// ─── Playing Phase (Online) — Alt bar + sekmeli yapı ───────────────────────
+
+type PlayTab = 'hints' | 'chat' | 'role' | 'vote' | 'settings'
+
+function PlayingPhase({
+  room,
+  players,
+  chat,
+  votes,
+  myUserId,
+  isImpostor,
+  isHost,
+  currentTurnPlayer,
+  isMyTurn,
+  hintText,
+  setHintText,
+  sendHint,
+  passTurn,
+  timeLeft,
+  roomId,
+  onLeave,
+}: {
+  room: RoomData
+  players: RoomPlayer[]
+  chat: ChatMsg[]
+  votes: Record<string, string>
+  myUserId: string
+  isImpostor: boolean
+  isHost: boolean
+  currentTurnPlayer: RoomPlayer | undefined
+  isMyTurn: boolean
+  hintText: string
+  setHintText: (v: string) => void
+  sendHint: () => void
+  passTurn: () => void
+  timeLeft: number
+  roomId: string
+  onLeave: () => void
+}) {
+  const [tab, setTab] = useState<PlayTab>('hints')
+  const [chatText, setChatText] = useState('')
+  const hintsScrollRef = useRef<HTMLDivElement>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  const hintsList = chat.filter((m) => m.message_type === 'hint' || m.message_type === 'system')
+  const chatList = chat.filter((m) => m.message_type === 'chat' || m.message_type === 'system')
+  const myPlayer = players.find((p) => p.user_id === myUserId)
+  const hasPassed = myPlayer?.passed ?? false
+
+  // Auto-scroll
+  useEffect(() => {
+    hintsScrollRef.current?.scrollTo({ top: hintsScrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [hintsList.length])
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [chatList.length])
+
+  // Tartışma mesajı gönder
+  const sendChatMessage = async () => {
+    const text = chatText.trim()
+    if (!text) return
+    await supabase.from('room_chat').insert({
+      room_id: roomId,
+      user_id: myUserId,
+      player_name: myPlayer?.username ?? 'Oyuncu',
+      text,
+      message_type: 'chat',
+    })
+    setChatText('')
+  }
+
+  const tabs: { id: PlayTab; label: string; icon: typeof Send }[] = [
+    { id: 'hints', label: 'İpuçları', icon: Sparkles },
+    { id: 'chat', label: 'Tartışma', icon: MessageSquare },
+    { id: 'role', label: 'Rolüm', icon: Eye },
+    { id: 'vote', label: 'Oylama', icon: AlertTriangle },
+    { id: 'settings', label: 'Ayarlar', icon: SettingsIcon },
+  ]
+
+  return (
+    <div className="flex h-svh w-full flex-col bg-slate-950 text-slate-100">
+      {/* ─── Header (sabit) ───────────────────────────────────────────── */}
+      <div className="shrink-0 border-b border-slate-800 px-4 py-3">
+        <div className="mx-auto flex w-full max-w-md items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-400">Tur {room.round}</span>
+            <span className="text-xs text-slate-500">·</span>
+            <span className="text-xs text-slate-400">{players.length} oyuncu</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {timeLeft > 0 && (
+              <span className={cn('flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold', timeLeft <= 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-indigo-500/20 text-indigo-300')}>
+                <Clock className="h-3 w-3" /> {timeLeft}s
+              </span>
+            )}
+            {/* Sıra göstergesi */}
+            <div className="flex items-center gap-1.5">
+              <Avatar avatarId={currentTurnPlayer?.avatar ?? 'avatar_default'} size="sm" hideFrame />
+              <span className={cn('text-xs font-medium', isMyTurn ? 'text-indigo-300' : 'text-slate-400')}>
+                {isMyTurn ? 'Senin sıran!' : currentTurnPlayer?.username}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── İçerik (scroll) ────────────────────────────────────────── */}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="mx-auto h-full w-full max-w-md">
+          {/* ─── İpuçları sekmesi ─────────────────────────────────────── */}
+          {tab === 'hints' && (
+            <div className="flex h-full flex-col px-4 py-3">
+              <div ref={hintsScrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {hintsList.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-slate-500">İpuçları burada görünecek...</p>
+                ) : (
+                  hintsList.map((msg) => (
+                    <div key={msg.id} className={cn('rounded-lg px-3 py-2 text-sm', msg.message_type === 'system' ? 'bg-slate-800/50 text-center text-xs text-slate-500' : 'bg-slate-800')}>
+                      {msg.message_type === 'hint' && <span className="font-semibold text-indigo-300">{msg.player_name}: </span>}
+                      {msg.text}
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* İpucu input */}
+              <div className="shrink-0 pt-2">
+                {isMyTurn && !hasPassed ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={hintText}
+                      onChange={(e) => setHintText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && sendHint()}
+                      placeholder="İpucun..."
+                      maxLength={100}
+                      aria-label="İpucu"
+                      className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 text-sm ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400"
+                    />
+                    <Button onClick={sendHint} disabled={!hintText.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                    <Button variant="secondary" onClick={passTurn}>
+                      Pas
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="py-2 text-center text-xs text-slate-500">
+                    {isMyTurn ? 'Pas geçtin, sıra bekleniyor...' : `${currentTurnPlayer?.username} ipucu veriyor...`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Tartışma sekmesi ───────────────────────────────────── */}
+          {tab === 'chat' && (
+            <div className="flex h-full flex-col px-4 py-3">
+              <div ref={chatScrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {chatList.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-slate-500">Tartışma burada... Serbestçe konuşabilirsin!</p>
+                ) : (
+                  chatList.map((msg) => (
+                    <div key={msg.id} className={cn('rounded-lg px-3 py-2 text-sm', msg.message_type === 'system' ? 'bg-slate-800/50 text-center text-xs text-slate-500' : 'bg-slate-800')}>
+                      {msg.message_type === 'chat' && <span className="font-semibold text-cyan-300">{msg.player_name}: </span>}
+                      {msg.text}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="shrink-0 pt-2">
+                <div className="flex gap-2">
+                  <input
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                    placeholder="Mesaj..."
+                    maxLength={200}
+                    aria-label="Tartışma mesajı"
+                    className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-3 text-sm ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400"
+                  />
+                  <Button onClick={sendChatMessage} disabled={!chatText.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Rolüm sekmesi ──────────────────────────────────────── */}
+          {tab === 'role' && (
+            <div className="flex h-full flex-col items-center justify-center px-6 py-8">
+              <RoleCard isImpostor={isImpostor} word={room.current_word ?? ''} category={room.current_category ?? ''} />
+              <div className="mt-4 w-full max-w-sm space-y-2">
+                <div className="rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
+                  <p className="text-xs text-slate-400">Oyuncular:</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {players.map((p) => (
+                      <span key={p.user_id} className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                        {p.username}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Oylama sekmesi ──────────────────────────────────────── */}
+          {tab === 'vote' && (
+            <div className="flex h-full flex-col px-4 py-3 overflow-y-auto">
+              <p className="mb-3 text-center text-sm text-slate-400">
+                {isHost ? 'Oylamayı başlatabilirsin' : 'Host oylamayı başlatabilir'}
+              </p>
+              {isHost && (
+                <Button
+                  variant="danger"
+                  fullWidth
+                  onClick={() => {
+                    void supabase.from('rooms').update({ state: 'VOTING' }).eq('id', roomId)
+                  }}
+                >
+                  <AlertTriangle className="h-4 w-4" /> Oylamaya Geç
+                </Button>
+              )}
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-slate-500">Şu anaki oylar:</p>
+                {Object.keys(votes).length === 0 ? (
+                  <p className="text-xs text-slate-600">Henüz oy yok</p>
+                ) : (
+                  Object.entries(votes).map(([voter, target]) => (
+                    <div key={voter} className="rounded-lg bg-slate-800 px-3 py-2 text-xs">
+                      <span className="text-slate-300">{players.find((p) => p.user_id === voter)?.username ?? '?'}</span>
+                      <span className="text-slate-500"> → </span>
+                      <span className="text-rose-300">{players.find((p) => p.user_id === target)?.username ?? '?'}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Ayarlar sekmesi ────────────────────────────────────── */}
+          {tab === 'settings' && (
+            <div className="flex h-full flex-col px-4 py-3 overflow-y-auto">
+              <div className="space-y-3">
+                <div className="rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
+                  <p className="text-xs text-slate-400">Oda kodu</p>
+                  <p className="mt-1 font-mono text-lg text-cyan-300">{room.code}</p>
+                </div>
+                <div className="rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
+                  <p className="text-xs text-slate-400">Oyun ayarları</p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-300">
+                    <p>Tur süresi: {room.settings.turnTimeLimit ?? 30}sn</p>
+                    <p>Oylama öncesi tur: {room.settings.roundsBeforeVoting ?? 2}</p>
+                    <p>Zorluk: {room.settings.wordDifficulty ?? 'MIXED'}</p>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800">
+                  <p className="text-xs text-slate-400">Oyuncular ({players.length})</p>
+                  <div className="mt-2 space-y-1.5">
+                    {players.map((p) => (
+                      <div key={p.user_id} className="flex items-center gap-2">
+                        <Avatar avatarId={p.avatar} size="sm" hideFrame />
+                        <span className="text-xs text-slate-300">{p.username}</span>
+                        {p.user_id === room.host_id && <Crown className="h-3 w-3 text-amber-400" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <Button variant="secondary" fullWidth onClick={onLeave}>
+                  <ArrowLeft className="h-4 w-4" /> Odadan Çık
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Alt bar (sabit) ─────────────────────────────────────────── */}
+      <div className="shrink-0 border-t border-slate-800 bg-slate-900/95 px-2 py-1.5">
+        <div className="mx-auto flex w-full max-w-md items-center justify-around">
+          {tabs.map((t) => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-medium transition-colors',
+                  tab === t.id ? 'text-indigo-300' : 'text-slate-500 hover:text-slate-300',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
