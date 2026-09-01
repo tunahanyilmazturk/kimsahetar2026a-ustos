@@ -6,7 +6,20 @@ import type { Profile, Stats, Inventory, LeaderboardEntry, Settings } from '../t
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
 export const STARTING_COINS = 100
-export const XP_PER_LEVEL = 100
+export const XP_PER_LEVEL = 100  // 1-30 arası her level için (geriye dönük uyumluluk)
+export const MAX_LEVEL = 100
+
+// ─── Adım adım seviye progresyonu ────────────────────────────────────────────
+// Level 1-30:  100 XP/level  (toplam 2.900 XP)
+// Level 30-60: 200 XP/level  (toplam 8.900 XP)
+// Level 60-90: 400 XP/level  (toplam 20.900 XP)
+// Level 90-100: 800 XP/level (toplam 28.900 XP)
+//
+// Eşik XP değerleri (kümülatif):
+const XP_TIER_1 = 2900    // Level 30'a ulaşmak için
+const XP_TIER_2 = 8900    // Level 60'a ulaşmak için
+const XP_TIER_3 = 20900   // Level 90'a ulaşmak için
+const XP_TIER_4 = 28900   // Level 100'e ulaşmak için (cap)
 
 function createPlayerId(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -16,9 +29,41 @@ function createPlayerId(): string {
   return `SK-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')}`
 }
 
-/** level = floor(xp / 100) + 1 */
+/** Adım adım progresyon: XP → Level (max 100) */
 export function levelFromXp(xp: number): number {
-  return Math.floor(xp / XP_PER_LEVEL) + 1
+  if (xp >= XP_TIER_4) return MAX_LEVEL
+  if (xp >= XP_TIER_3) return 90 + Math.floor((xp - XP_TIER_3) / 800)
+  if (xp >= XP_TIER_2) return 60 + Math.floor((xp - XP_TIER_2) / 400)
+  if (xp >= XP_TIER_1) return 30 + Math.floor((xp - XP_TIER_1) / 200)
+  return 1 + Math.floor(xp / 100)
+}
+
+/** Bir level'dan bir sonrakine geçmek için gereken XP */
+export function xpForLevel(level: number): number {
+  if (level >= MAX_LEVEL) return Infinity
+  if (level >= 90) return 800
+  if (level >= 60) return 400
+  if (level >= 30) return 200
+  return 100
+}
+
+/** Mevcut level'dan bir sonrakine geçmek için kalan XP */
+export function xpToNextLevel(xp: number): number {
+  const level = levelFromXp(xp)
+  if (level >= MAX_LEVEL) return 0
+  const need = xpForLevel(level)
+  // Mevcut level'ın başlangıç XP'sini hesapla
+  const levelStartXp = xpForLevelStart(level)
+  return need - (xp - levelStartXp)
+}
+
+/** Belirli bir level'ın başlangıç XP'si */
+export function xpForLevelStart(level: number): number {
+  if (level <= 1) return 0
+  if (level <= 30) return (level - 1) * 100
+  if (level <= 60) return XP_TIER_1 + (level - 30) * 200
+  if (level <= 90) return XP_TIER_2 + (level - 60) * 400
+  return XP_TIER_3 + (level - 90) * 800
 }
 
 function defaultProfile(): Profile {
@@ -88,11 +133,13 @@ export const profileApi = {
     return true
   },
 
-  /** XP ekle; level otomatik güncellenir. Yeni level döner. */
+  /** XP ekle; level otomatik güncellenir. Yeni level döner. Level 100'de cap. */
   addXp(amount: number): { xp: number; level: number; leveledUp: boolean } {
     const p = this.get()
     const oldLevel = p.level
-    const newXp = Math.max(0, p.xp + amount)
+    let newXp = Math.max(0, p.xp + amount)
+    // Level 100 cap — fazla XP birikmesin
+    if (newXp >= XP_TIER_4) newXp = XP_TIER_4
     const newLevel = levelFromXp(newXp)
     this.update({ xp: newXp })
     return { xp: newXp, level: newLevel, leveledUp: newLevel > oldLevel }

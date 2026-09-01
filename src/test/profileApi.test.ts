@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { profileApi, statsApi, inventoryApi, leaderboardApi, levelFromXp, STARTING_COINS } from '../lib/profileApi'
+import { profileApi, statsApi, inventoryApi, leaderboardApi, levelFromXp, xpForLevel, xpToNextLevel, MAX_LEVEL, STARTING_COINS } from '../lib/profileApi'
+
+describe('MAX_LEVEL', () => {
+  it('MAX_LEVEL 100', () => expect(MAX_LEVEL).toBe(100))
+})
 import { STARTER_AVATARS } from '../config/customShopAvatars'
 
 describe('levelFromXp', () => {
@@ -7,6 +11,33 @@ describe('levelFromXp', () => {
   it('xp 99 → level 1', () => expect(levelFromXp(99)).toBe(1))
   it('xp 100 → level 2', () => expect(levelFromXp(100)).toBe(2))
   it('xp 250 → level 3', () => expect(levelFromXp(250)).toBe(3))
+  // Adım adım progresyon testleri
+  it('xp 2899 → level 30', () => expect(levelFromXp(2899)).toBe(30))
+  it('xp 2900 → level 31 (tier 2 başlangıcı)', () => expect(levelFromXp(2900)).toBe(31))
+  it('xp 8899 → level 60', () => expect(levelFromXp(8899)).toBe(60))
+  it('xp 8900 → level 61 (tier 3 başlangıcı)', () => expect(levelFromXp(8900)).toBe(61))
+  it('xp 20899 → level 90', () => expect(levelFromXp(20899)).toBe(90))
+  it('xp 20900 → level 91 (tier 4 başlangıcı)', () => expect(levelFromXp(20900)).toBe(91))
+  it('xp 28900 → level 100 (cap)', () => expect(levelFromXp(28900)).toBe(100))
+  it('xp 99999 → level 100 (cap aşılamaz)', () => expect(levelFromXp(99999)).toBe(100))
+})
+
+describe('xpForLevel', () => {
+  it('level 1 → 100 XP', () => expect(xpForLevel(1)).toBe(100))
+  it('level 29 → 100 XP', () => expect(xpForLevel(29)).toBe(100))
+  it('level 30 → 200 XP (tier 2)', () => expect(xpForLevel(30)).toBe(200))
+  it('level 59 → 200 XP', () => expect(xpForLevel(59)).toBe(200))
+  it('level 60 → 400 XP (tier 3)', () => expect(xpForLevel(60)).toBe(400))
+  it('level 89 → 400 XP', () => expect(xpForLevel(89)).toBe(400))
+  it('level 90 → 800 XP (tier 4)', () => expect(xpForLevel(90)).toBe(800))
+  it('level 99 → 800 XP', () => expect(xpForLevel(99)).toBe(800))
+  it('level 100 → Infinity (cap)', () => expect(xpForLevel(100)).toBe(Infinity))
+})
+
+describe('xpToNextLevel', () => {
+  it('xp 0 → 100 XP kalır (level 1→2)', () => expect(xpToNextLevel(0)).toBe(100))
+  it('xp 50 → 50 XP kalır (level 1→2)', () => expect(xpToNextLevel(50)).toBe(50))
+  it('level 100 → 0 XP kalır (cap)', () => expect(xpToNextLevel(28900)).toBe(0))
 })
 
 describe('profileApi', () => {

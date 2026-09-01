@@ -175,6 +175,9 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
             <span className="inline-flex items-center gap-1">
               <Sparkles className="h-3 w-3 text-indigo-400" />
               Seviye {profile.level}
+              {profile.level >= 100 && (
+                <span className="ml-1 rounded bg-amber-500/20 px-1 text-[9px] font-bold text-amber-300">MAX</span>
+              )}
             </span>
             <span className="text-slate-600">•</span>
             <span className="inline-flex items-center gap-1">

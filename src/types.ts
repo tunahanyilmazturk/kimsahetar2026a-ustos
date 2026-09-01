@@ -99,7 +99,7 @@ export interface Profile {
   frame: string | null
   coins: number // başlangıç: 100
   xp: number
-  level: number // level = floor(xp / 100) + 1
+  level: number // 1-100 (adım adım progresyon: 1-30: 100XP, 30-60: 200XP, 60-90: 400XP, 90-100: 800XP)
   createdAt: number
 }
 
