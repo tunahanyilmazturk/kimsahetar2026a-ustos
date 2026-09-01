@@ -11,48 +11,62 @@ import { questsApi } from './lib/questsApi'
 import { useSettings } from './hooks/useSettings'
 import { WelcomeIntro } from './components/auth/WelcomeIntro'
 
-// OfflineGame sadece "Oyna" tıklandığında gerekir — lazy-load ile ayrı chunk
+// OfflineGame + OnlineGame lazy-load ile ayrı chunk
 const OfflineGame = lazy(() =>
   import('./OfflineGame').then((m) => ({ default: m.OfflineGame })),
 )
+const OnlineGame = lazy(() =>
+  import('./OnlineGame').then((m) => ({ default: m.OnlineGame })),
+)
 
-type Screen = 'menu' | 'game' | 'online'
+type Screen = 'menu' | 'game' | 'online' | 'online-game'
+
+interface OnlineRoomInfo {
+  roomId: string
+  roomCode: string
+}
 
 function AppInner() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [authUser, setAuthUser] = useState<AuthRecord | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [introSeen, setIntroSeen] = useState(() => localStorage.getItem('sahtekar:intro-seen') === '1')
+  const [onlineRoom, setOnlineRoom] = useState<OnlineRoomInfo | null>(null)
   const { settings } = useSettings()
 
   // İlk yüklemede session'ı kontrol et + auth state değişimini dinle
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
     let lastUserId: string | null = null
-    ;(async () => {
-      const current = await authApi.currentAsync()
-      setAuthUser(current)
-      setAuthLoading(false)
-      if (current && current.id !== lastUserId) {
-        lastUserId = current.id
-        // Login sonrası Supabase'den yerel cache'i senkronize et
+
+    const syncAll = async () => {
+      try {
         await Promise.all([
           profileApi.syncFromSupabase(),
           achievementsApi.syncFromSupabase(),
           questsApi.syncDailyFromSupabase(),
           questsApi.syncWeeklyFromSupabase(),
         ])
+      } catch (err) {
+        console.warn('[sync] Supabase sync başarısız, offline modda devam:', err)
+      }
+    }
+
+    ;(async () => {
+      const current = await authApi.currentAsync()
+      setAuthUser(current)
+      setAuthLoading(false)
+      if (current && current.id !== lastUserId) {
+        lastUserId = current.id
+        // Session token'ın tam yüklenmesi için kısa bekle
+        setTimeout(() => void syncAll(), 300)
       }
       unsubscribe = authApi.onAuthChange((record) => {
         setAuthUser(record)
         if (record && record.id !== lastUserId) {
           lastUserId = record.id
-          void Promise.all([
-            profileApi.syncFromSupabase(),
-            achievementsApi.syncFromSupabase(),
-            questsApi.syncDailyFromSupabase(),
-            questsApi.syncWeeklyFromSupabase(),
-          ])
+          // Yeni giriş/çıkış — session hazır olunca sync
+          setTimeout(() => void syncAll(), 300)
         }
       })
     })()
@@ -70,7 +84,8 @@ function AppInner() {
       </Suspense></div>
     )
   }
-  if (screen === 'online') return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><OnlineLobby onExit={() => setScreen('menu')} /></div>
+  if (screen === 'online') return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><OnlineLobby onExit={() => setScreen('menu')} onEnterRoom={(info) => { setOnlineRoom(info); setScreen('online-game') }} /></div>
+  if (screen === 'online-game' && onlineRoom) return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><Suspense fallback={<LoadingScreen />}><OnlineGame roomId={onlineRoom.roomId} roomCode={onlineRoom.roomCode} onExit={() => { setOnlineRoom(null); setScreen('online') }} /></Suspense></div>
 
   return <div className={settings.largeText ? 'large-text' : undefined} data-contrast={settings.highContrast ? 'high' : 'normal'}><MainMenuPanel onPlay={() => setScreen('game')} onOnline={() => setScreen('online')} /></div>
 }

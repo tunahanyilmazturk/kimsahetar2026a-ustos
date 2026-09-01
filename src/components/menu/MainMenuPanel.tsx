@@ -14,12 +14,14 @@ import {
   Users,
   Menu,
   X,
+  LogOut,
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import { Avatar } from '../common/Avatar'
 import { useProfile } from '../../hooks/useProfile'
 import { usePwaInstall } from '../../hooks/usePwaInstall'
 import { questsApi } from '../../lib/questsApi'
+import { authApi } from '../../lib/authApi'
 import { MarketProfileModal } from './MarketProfileModal'
 import { AchievementsModal } from './AchievementsModal'
 import { DailyQuestsModal } from './DailyQuestsModal'
@@ -139,6 +141,8 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
               <Coins className="h-3 w-3 text-amber-400" />
               {profile.coins}
             </span>
+            <span className="text-slate-600">•</span>
+            <span className="font-mono text-[10px] text-cyan-400/70">{profile.playerId}</span>
           </div>
         </div>
         <User className="h-5 w-5 text-slate-500" />
@@ -212,6 +216,20 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
           </Button>
         </motion.div>
 
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+          <button
+            type="button"
+            onClick={async () => {
+              await authApi.logout()
+              window.location.reload()
+            }}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-800/40 px-4 py-2.5 text-sm font-medium text-rose-300 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-500/10 hover:ring-rose-500/40"
+          >
+            <LogOut className="h-4 w-4" />
+            Çıkış Yap
+          </button>
+        </motion.div>
+
         {/* PWA install — sadece install edilebilir durumda göster */}
         {canInstall && (
           <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
@@ -239,7 +257,7 @@ export function MainMenuPanel({ onPlay, onOnline }: MainMenuPanelProps) {
       <AchievementsModal open={achievementsOpen} onClose={() => setAchievementsOpen(false)} />
       <DailyQuestsModal open={questsOpen} onClose={() => setQuestsOpen(false)} />
       <LeaderboardModal open={leaderboardOpen} onClose={() => setLeaderboardOpen(false)} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={() => window.location.reload()} />
       <SocialModal open={socialOpen} onClose={() => setSocialOpen(false)} />
     </div>
   )

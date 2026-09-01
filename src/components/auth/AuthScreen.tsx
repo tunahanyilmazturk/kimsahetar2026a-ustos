@@ -15,7 +15,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: () => void }) {
     setError('')
     const name = username.trim()
     if (name.length < 3 || password.length < 4) {
-      setError('Kullanıcı adı en az 3, şifre en az 4 karakter olmalı')
+      setError('Oyun adı en az 3, şifre en az 4 karakter olmalı')
       return
     }
     setLoading(true)
@@ -44,14 +44,14 @@ export function AuthScreen({ onSuccess }: { onSuccess: () => void }) {
             <ShieldCheck className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-bold">Sahtekar Kim?</h1>
-          <p className="mt-1 text-sm text-slate-400">Oyuncu hesabına giriş yap</p>
+          <p className="mt-1 text-sm text-slate-400">{registering ? 'Oyun adını seç ve kayıt ol' : 'Oyuncu hesabına giriş yap'}</p>
         </div>
         <div className="space-y-3">
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Kullanıcı adı"
-            aria-label="Kullanıcı adı"
+            placeholder={registering ? 'Oyun adın (nickname)' : 'Oyun adın'}
+            aria-label="Oyun adı"
             disabled={loading}
             className="w-full rounded-xl bg-slate-800 px-4 py-3 ring-1 ring-slate-700 focus:outline-none focus:ring-indigo-400 disabled:opacity-50"
           />

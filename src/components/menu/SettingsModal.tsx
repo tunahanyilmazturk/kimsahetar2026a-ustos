@@ -1,27 +1,45 @@
+import { useState } from 'react'
 import { motion } from 'motion/react'
-import { Volume2, VolumeX, Music, Music2, Vibrate, RotateCcw, Eye, Type } from 'lucide-react'
+import { Volume2, VolumeX, Music, Music2, Vibrate, RotateCcw, Eye, Type, LogOut, Loader2 } from 'lucide-react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { useSettings } from '../../hooks/useSettings'
 import { useToast } from '../common/toast-context'
+import { authApi } from '../../lib/authApi'
 import { cn } from '../../utils/cn'
 import type { BotDifficulty, WordDifficulty } from '../../types'
 
 export interface SettingsModalProps {
   open: boolean
   onClose: () => void
+  onLogout?: () => void
 }
 
 const BOT_DIFFICULTIES: BotDifficulty[] = ['EASY', 'SMART', 'EXPERT']
 const WORD_DIFFICULTIES: WordDifficulty[] = ['EASY', 'MEDIUM', 'HARD', 'MIXED']
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
   const { settings, update, reset } = useSettings()
   const toast = useToast()
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleReset = () => {
     reset()
     toast.success('Ayarlar sıfırlandı')
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    try {
+      await authApi.logout()
+      toast.info('Çıkış yapıldı')
+      onLogout?.()
+      onClose()
+    } catch {
+      toast.error('Çıkış yapılamadı')
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   return (
@@ -171,6 +189,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <RotateCcw className="h-4 w-4" />
           Ayarları Sıfırla
         </Button>
+
+        {/* ─── Çıkış ──────────────────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-medium text-rose-300 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-500/10 hover:ring-rose-500/40 disabled:opacity-50 min-h-11"
+        >
+          {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+          {loggingOut ? 'Çıkış yapılıyor...' : 'Hesaptan Çıkış Yap'}
+        </button>
       </div>
     </Modal>
   )

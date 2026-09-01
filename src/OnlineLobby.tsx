@@ -20,7 +20,7 @@ function generateRoomCode(): string {
   return Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
 }
 
-export function OnlineLobby({ onExit }: { onExit: () => void }) {
+export function OnlineLobby({ onExit, onEnterRoom }: { onExit: () => void; onEnterRoom: (info: { roomId: string; roomCode: string }) => void }) {
   const [roomCode, setRoomCode] = useState('')
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -186,6 +186,7 @@ export function OnlineLobby({ onExit }: { onExit: () => void }) {
       setActiveRoomId(room.id)
       await refreshPlayers(room.id)
       toast.success(`Oda ${room.code} oluşturuldu`)
+      onEnterRoom({ roomId: room.id, roomCode: room.code })
     } catch {
       toast.error('Bir hata oluştu')
     } finally {
@@ -232,6 +233,7 @@ export function OnlineLobby({ onExit }: { onExit: () => void }) {
       setActiveRoomId(room.id)
       await refreshPlayers(room.id)
       toast.success(`Odaya ${room.code} katıldın`)
+      onEnterRoom({ roomId: room.id, roomCode: room.code })
     } catch {
       toast.error('Bir hata oluştu')
     } finally {
