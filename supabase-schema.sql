@@ -1,8 +1,16 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Sahtekar Kim? — Supabase Veritabanı Şeması
+-- Sahtekar Kim? — Supabase Veritabanı Şeması (Birleştirilmiş)
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Bu SQL'i Supabase Dashboard → SQL Editor → New query olarak çalıştır.
--- Sırasıyla: tablolar → trigger → RLS politikaları → view
+-- Tüm tablolar, sütunlar, RLS, trigger, view ve realtime ayarları tek dosyada.
+-- idempotent — tekrar çalıştırırsanız hata vermez (if not exists / or replace).
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ─── 0. EXTENSION ──────────────────────────────────────────────────────────
+create extension if not exists pgcrypto;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- TABLOLAR
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ─── 1. PROFILES ────────────────────────────────────────────────────────────
@@ -99,6 +107,8 @@ create table if not exists public.rooms (
   current_word text,
   current_category text,
   impostor_id uuid,
+  voted_impostor_id uuid,       -- oyuncuların oyladığı sahtekar ID
+  impostor_guess text,           -- sahtekarın kelime tahmini
   turn_index integer not null default 0,
   round integer not null default 1,
   winner text,
@@ -112,6 +122,8 @@ create table if not exists public.room_players (
   room_id uuid not null references public.rooms(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   is_ready boolean not null default false,
+  seat integer not null default 0,        -- turn order için sıra numarası
+  passed boolean not null default false,   -- pas durumu
   joined_at timestamptz not null default now(),
   primary key (room_id, user_id)
 );
@@ -124,6 +136,7 @@ create table if not exists public.room_chat (
   user_id uuid not null references auth.users(id) on delete cascade,
   player_name text not null,
   text text not null,
+  message_type text not null default 'hint', -- hint | system | vote
   created_at timestamptz not null default now()
 );
 
@@ -137,8 +150,23 @@ create table if not exists public.room_votes (
   primary key (room_id, voter_id)
 );
 
+-- ─── 12. ROOM INVITES (oda davet sistemi) ───────────────────────────────────
+
+create table if not exists public.room_invites (
+  id          uuid primary key default gen_random_uuid(),
+  room_id     uuid not null references public.rooms(id) on delete cascade,
+  room_code   text not null,
+  inviter_id  uuid not null references auth.users(id) on delete cascade,
+  invitee_id  uuid not null references auth.users(id) on delete cascade,
+  status      text not null default 'pending' check (status in ('pending','accepted','rejected','expired')),
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_room_invites_invitee on public.room_invites(invitee_id, status);
+create index if not exists idx_room_invites_inviter on public.room_invites(inviter_id);
+
 -- ═══════════════════════════════════════════════════════════════════════════
--- TRIGGER: Yeni kullanıcı signup'da profile + stats + inventory oluştur
+-- TRIGGER 1: Yeni kullanıcı signup'da profile + stats + inventory oluştur
 -- ═══════════════════════════════════════════════════════════════════════════
 
 create or replace function public.handle_new_user()
@@ -170,6 +198,80 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- TRIGGER 2: Oda otomatik kapanma + host transferi
+-- Son oyuncu ayrılırsa oda silinir, host ayrılırsa en eski oyuncuya devir
+-- ═══════════════════════════════════════════════════════════════════════════
+
+create or replace function public.handle_room_player_leave()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  remaining_count integer;
+  new_host_id uuid;
+  room_state text;
+begin
+  select state into room_state from rooms where id = old.room_id;
+
+  select count(*) into remaining_count
+  from room_players
+  where room_id = old.room_id;
+
+  -- Oda tamamen boş → sil (cascade: chat, votes, invites)
+  if remaining_count = 0 then
+    delete from rooms where id = old.room_id;
+    return old;
+  end if;
+
+  -- Host ayrıldı ve hala oyuncu var → en eski oyuncuya devret
+  if old.user_id = (select host_id from rooms where id = old.room_id) then
+    select user_id into new_host_id
+    from room_players
+    where room_id = old.room_id
+    order by joined_at asc
+    limit 1;
+
+    if new_host_id is not null then
+      update rooms set host_id = new_host_id, updated_at = now() where id = old.room_id;
+    end if;
+  end if;
+
+  -- Oyun sırasında oyuncu <3 → FINISHED
+  if remaining_count < 3 and room_state in ('PLAYING', 'VOTING') then
+    update rooms set state = 'FINISHED', winner = 'abandoned', updated_at = now() where id = old.room_id;
+  end if;
+
+  return old;
+end;
+$$;
+
+drop trigger if exists trg_room_player_leave on public.room_players;
+create trigger trg_room_player_leave
+  after delete on public.room_players
+  for each row execute function public.handle_room_player_leave();
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- TRIGGER 3: rooms.updated_at otomatik güncelleme
+-- ═══════════════════════════════════════════════════════════════════════════
+
+create or replace function public.update_room_timestamp()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_room_timestamp on public.rooms;
+create trigger trg_room_timestamp
+  before update on public.rooms
+  for each row execute function public.update_room_timestamp();
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- LEADERBOARD VIEW
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -192,75 +294,210 @@ order by s.wins desc, p.xp desc;
 
 -- ─── PROFILES: herkes okuyabilir (leaderboard için), sadece sahibi yazabilir
 alter table public.profiles enable row level security;
+drop policy if exists "profiles_select" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_select" on public.profiles for select using (true);
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
 create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
 
 -- ─── STATS: herkes okuyabilir, sadece sahibi yazabilir
 alter table public.stats enable row level security;
+drop policy if exists "stats_select" on public.stats;
+drop policy if exists "stats_update_own" on public.stats;
+drop policy if exists "stats_insert_own" on public.stats;
 create policy "stats_select" on public.stats for select using (true);
 create policy "stats_update_own" on public.stats for update using (auth.uid() = user_id);
 create policy "stats_insert_own" on public.stats for insert with check (auth.uid() = user_id);
 
 -- ─── INVENTORY: sadece sahibi okuyabilir ve yazabilir
 alter table public.inventory enable row level security;
+drop policy if exists "inventory_select_own" on public.inventory;
+drop policy if exists "inventory_update_own" on public.inventory;
+drop policy if exists "inventory_insert_own" on public.inventory;
 create policy "inventory_select_own" on public.inventory for select using (auth.uid() = user_id);
 create policy "inventory_update_own" on public.inventory for update using (auth.uid() = user_id);
 create policy "inventory_insert_own" on public.inventory for insert with check (auth.uid() = user_id);
 
 -- ─── ACHIEVEMENTS: sadece sahibi okuyabilir ve yazabilir
 alter table public.achievements enable row level security;
+drop policy if exists "achievements_select_own" on public.achievements;
+drop policy if exists "achievements_insert_own" on public.achievements;
+drop policy if exists "achievements_delete_own" on public.achievements;
 create policy "achievements_select_own" on public.achievements for select using (auth.uid() = user_id);
 create policy "achievements_insert_own" on public.achievements for insert with check (auth.uid() = user_id);
 create policy "achievements_delete_own" on public.achievements for delete using (auth.uid() = user_id);
 
 -- ─── DAILY QUESTS: sadece sahibi okuyabilir ve yazabilir
 alter table public.daily_quests enable row level security;
+drop policy if exists "daily_quests_select_own" on public.daily_quests;
+drop policy if exists "daily_quests_upsert_own" on public.daily_quests;
+drop policy if exists "daily_quests_update_own" on public.daily_quests;
 create policy "daily_quests_select_own" on public.daily_quests for select using (auth.uid() = user_id);
 create policy "daily_quests_upsert_own" on public.daily_quests for insert with check (auth.uid() = user_id);
 create policy "daily_quests_update_own" on public.daily_quests for update using (auth.uid() = user_id);
 
 -- ─── WEEKLY QUESTS: sadece sahibi okuyabilir ve yazabilir
 alter table public.weekly_quests enable row level security;
+drop policy if exists "weekly_quests_select_own" on public.weekly_quests;
+drop policy if exists "weekly_quests_upsert_own" on public.weekly_quests;
+drop policy if exists "weekly_quests_update_own" on public.weekly_quests;
 create policy "weekly_quests_select_own" on public.weekly_quests for select using (auth.uid() = user_id);
 create policy "weekly_quests_upsert_own" on public.weekly_quests for insert with check (auth.uid() = user_id);
 create policy "weekly_quests_update_own" on public.weekly_quests for update using (auth.uid() = user_id);
 
--- ─── FRIENDS: kullanıcı kendi arkadaşlarını görebilir, ekleyebilir, silebilir
+-- ─── FRIENDS: hem gönderen hem alıcı okuyup güncelleyebilir
 alter table public.friends enable row level security;
+drop policy if exists "friends_select_own" on public.friends;
+drop policy if exists "friends_insert_own" on public.friends;
+drop policy if exists "friends_delete_own" on public.friends;
+drop policy if exists "friends_update_own" on public.friends;
 create policy "friends_select_own" on public.friends for select using (auth.uid() = user_id or auth.uid() = friend_id);
 create policy "friends_insert_own" on public.friends for insert with check (auth.uid() = user_id);
-create policy "friends_delete_own" on public.friends for delete using (auth.uid() = user_id);
-create policy "friends_update_own" on public.friends for update using (auth.uid() = user_id);
+create policy "friends_delete_own" on public.friends for delete using (auth.uid() = user_id or auth.uid() = friend_id);
+create policy "friends_update_own" on public.friends for update using (auth.uid() = user_id or auth.uid() = friend_id)
+  with check (auth.uid() = user_id or auth.uid() = friend_id);
 
--- ─── ROOMS: oda üyeleri görebilir, host oluşturabilir/güncelleyebilir
+-- ─── ROOMS: herkes görebilir, host oluşturabilir/güncelleyebilir/silebilir
 alter table public.rooms enable row level security;
+drop policy if exists "rooms_select" on public.rooms;
+drop policy if exists "rooms_insert_own" on public.rooms;
+drop policy if exists "rooms_update_own" on public.rooms;
+drop policy if exists "rooms_delete_own" on public.rooms;
 create policy "rooms_select" on public.rooms for select using (true);
 create policy "rooms_insert_own" on public.rooms for insert with check (auth.uid() = host_id);
 create policy "rooms_update_own" on public.rooms for update using (auth.uid() = host_id);
 create policy "rooms_delete_own" on public.rooms for delete using (auth.uid() = host_id);
 
--- ─── ROOM PLAYERS: oda üyeleri görebilir, kendisi katılabilir/ayrılabilir
+-- ─── ROOM PLAYERS: herkes görebilir, kendisi katılabilir/ayrılabilir/güncelleyebilir
 alter table public.room_players enable row level security;
+drop policy if exists "room_players_select" on public.room_players;
+drop policy if exists "room_players_insert_own" on public.room_players;
+drop policy if exists "room_players_update_own" on public.room_players;
+drop policy if exists "room_players_delete_own" on public.room_players;
 create policy "room_players_select" on public.room_players for select using (true);
 create policy "room_players_insert_own" on public.room_players for insert with check (auth.uid() = user_id);
+create policy "room_players_update_own" on public.room_players for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 create policy "room_players_delete_own" on public.room_players for delete using (auth.uid() = user_id);
 
--- ─── ROOM CHAT: oda üyeleri görebilir, kendisi yazabilir
+-- ─── ROOM CHAT: herkes görebilir, kendisi yazabilir
 alter table public.room_chat enable row level security;
+drop policy if exists "room_chat_select" on public.room_chat;
+drop policy if exists "room_chat_insert_own" on public.room_chat;
 create policy "room_chat_select" on public.room_chat for select using (true);
 create policy "room_chat_insert_own" on public.room_chat for insert with check (auth.uid() = user_id);
 
--- ─── ROOM VOTES: oda üyeleri görebilir, kendisi oy verebilir
+-- ─── ROOM VOTES: herkes görebilir, kendisi oy verebilir/silebilir
 alter table public.room_votes enable row level security;
+drop policy if exists "room_votes_select" on public.room_votes;
+drop policy if exists "room_votes_insert_own" on public.room_votes;
+drop policy if exists "room_votes_delete_own" on public.room_votes;
 create policy "room_votes_select" on public.room_votes for select using (true);
 create policy "room_votes_insert_own" on public.room_votes for insert with check (auth.uid() = voter_id);
 create policy "room_votes_delete_own" on public.room_votes for delete using (auth.uid() = voter_id);
 
+-- ─── ROOM INVITES: davet eden ve davet edilen okuyup güncelleyebilir
+alter table public.room_invites enable row level security;
+drop policy if exists "room_invites_select" on public.room_invites;
+drop policy if exists "room_invites_insert" on public.room_invites;
+drop policy if exists "room_invites_update" on public.room_invites;
+drop policy if exists "room_invites_delete" on public.room_invites;
+create policy "room_invites_select" on public.room_invites
+  for select using (auth.uid() = inviter_id or auth.uid() = invitee_id);
+create policy "room_invites_insert" on public.room_invites
+  for insert with check (auth.uid() = inviter_id);
+create policy "room_invites_update" on public.room_invites
+  for update using (auth.uid() = inviter_id or auth.uid() = invitee_id)
+  with check (auth.uid() = inviter_id or auth.uid() = invitee_id);
+create policy "room_invites_delete" on public.room_invites
+  for delete using (auth.uid() = inviter_id or auth.uid() = invitee_id);
+
 -- ═══════════════════════════════════════════════════════════════════════════
--- REALTIME: tabloları realtime'a ekle
+-- GRANT İZİNLERİ
 -- ═══════════════════════════════════════════════════════════════════════════
+
+-- Profiles
+grant select on public.profiles to anon, authenticated;
+grant update on public.profiles to authenticated;
+grant insert on public.profiles to authenticated;
+
+-- Stats
+grant select on public.stats to anon, authenticated;
+grant update on public.stats to authenticated;
+grant insert on public.stats to authenticated;
+
+-- Inventory
+grant select on public.inventory to authenticated;
+grant update on public.inventory to authenticated;
+grant insert on public.inventory to authenticated;
+
+-- Achievements
+grant select on public.achievements to authenticated;
+grant insert on public.achievements to authenticated;
+grant delete on public.achievements to authenticated;
+
+-- Daily Quests
+grant select on public.daily_quests to authenticated;
+grant insert on public.daily_quests to authenticated;
+grant update on public.daily_quests to authenticated;
+
+-- Weekly Quests
+grant select on public.weekly_quests to authenticated;
+grant insert on public.weekly_quests to authenticated;
+grant update on public.weekly_quests to authenticated;
+
+-- Friends
+grant select on public.friends to authenticated;
+grant insert on public.friends to authenticated;
+grant update on public.friends to authenticated;
+grant delete on public.friends to authenticated;
+
+-- Rooms
+grant select on public.rooms to anon, authenticated;
+grant insert on public.rooms to authenticated;
+grant update on public.rooms to authenticated;
+grant delete on public.rooms to authenticated;
+
+-- Room Players
+grant select on public.room_players to authenticated;
+grant insert on public.room_players to authenticated;
+grant update on public.room_players to authenticated;
+grant delete on public.room_players to authenticated;
+
+-- Room Chat
+grant select on public.room_chat to authenticated;
+grant insert on public.room_chat to authenticated;
+
+-- Room Votes
+grant select on public.room_votes to authenticated;
+grant insert on public.room_votes to authenticated;
+grant delete on public.room_votes to authenticated;
+
+-- Room Invites
+grant select on public.room_invites to authenticated;
+grant insert on public.room_invites to authenticated;
+grant update on public.room_invites to authenticated;
+grant delete on public.room_invites to authenticated;
+
+-- Leaderboard view
+grant select on public.leaderboard to anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- REALTIME: tabloları realtime yayınına ekle
+-- ═══════════════════════════════════════════════════════════════════════════
+
 alter publication supabase_realtime add table public.rooms;
 alter publication supabase_realtime add table public.room_players;
 alter publication supabase_realtime add table public.room_chat;
 alter publication supabase_realtime add table public.room_votes;
+alter publication supabase_realtime add table public.friends;
+alter publication supabase_realtime add table public.room_invites;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- CLEANUP: 1 saatten eski LOBBY odalarını sil (stale odalar)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+delete from rooms
+  where state = 'LOBBY'
+  and created_at < now() - interval '1 hour';
