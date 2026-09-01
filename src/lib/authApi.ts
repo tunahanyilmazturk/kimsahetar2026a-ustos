@@ -51,7 +51,7 @@ export const authApi = {
     return { ok: true }
   },
 
-  /** Kayıt ol. */
+  /** Kayıt ol — başarılıysa otomatik giriş yap. */
   async register(
     username: string,
     password: string,
@@ -73,6 +73,17 @@ export const authApi = {
     if (!data.user) {
       return { ok: false, error: 'Kayıt başarısız' }
     }
+
+    // Supabase otomatik session oluşturmayabilir — manuel login yap
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    })
+    if (loginError) {
+      // Kayıt başarılı ama login başarısız — kullanıcı manuel giriş yapabilir
+      return { ok: true }
+    }
+
     return { ok: true }
   },
 
