@@ -81,6 +81,21 @@ export const authApi = {
     await supabase.auth.signOut()
   },
 
+  /** Google OAuth ile giriş (yeni pencere açar, redirect ile geri döner). */
+  async signInWithGoogle(): Promise<{ ok: boolean; error?: string }> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+    if (error) {
+      return { ok: false, error: error.message }
+    }
+    // signInWithOAuth tarayıcıyı yönlendirir — geri dönüşte onAuthChange tetiklenir
+    return { ok: true }
+  },
+
   /** Auth state değişimini dinle. */
   onAuthChange(callback: (record: AuthRecord | null) => void): () => void {
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
