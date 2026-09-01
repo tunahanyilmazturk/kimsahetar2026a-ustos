@@ -201,6 +201,9 @@ create table if not exists public.room_chat (
   created_at timestamptz not null default now()
 );
 
+-- Eski veritabanlarına message_type sütunu ekle
+alter table public.room_chat add column if not exists message_type text not null default 'hint';
+
 -- ─── 11. ROOM VOTES ─────────────────────────────────────────────────────────
 
 create table if not exists public.room_votes (
