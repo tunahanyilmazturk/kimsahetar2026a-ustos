@@ -21,9 +21,12 @@ const XP_TIER_2 = 8900    // Level 60'a ulaşmak için
 const XP_TIER_3 = 20900   // Level 90'a ulaşmak için
 const XP_TIER_4 = 28900   // Level 100'e ulaşmak için (cap)
 
+/** Fallback player ID — sadece offline/Supabase yokken kullanılır.
+ *  Supabase signup'da trigger otomatik sıralı ID (1, 2, 3...) atar. */
 function createPlayerId(): string {
+  // Eski SK-XXXXXXXX formatı — sadece eski cihazlar için fallback
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const bytes = new Uint8Array(8)
+  const bytes = new Uint8Array(4)
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes)
   else bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256) })
   return `SK-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')}`

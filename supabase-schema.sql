@@ -190,11 +190,15 @@ security definer set search_path = public
 as $$
 declare
   v_player_id text;
-  v_hex text;
+  v_max_id integer;
 begin
-  -- Player ID oluştur (SK-XXXXXXXX formatı) — pgcrypto gerektirmez
-  v_hex := md5(random()::text || clock_timestamp()::text);
-  v_player_id := 'SK-' || upper(substr(v_hex, 1, 8));
+  -- Sıralı player ID: mevcut max sayısal ID + 1 (ilk kullanıcı = 1)
+  select coalesce(max(player_id::integer), 0)
+    into v_max_id
+    from public.profiles
+    where player_id ~ '^[0-9]+$';
+
+  v_player_id := (v_max_id + 1)::text;
 
   insert into public.profiles (id, username, player_id)
   values (

@@ -245,12 +245,12 @@ export function SocialModal({ open, onClose, onJoinRoom }: { open: boolean; onCl
         .maybeSingle()
       profile = byUsername
 
-      // 2. Player ID ile
-      if (!profile && value.toUpperCase().startsWith('SK-')) {
+      // 2. Player ID ile (sayısal: "1", "2" veya eski SK-XXXXXXXX)
+      if (!profile) {
         const { data: byPlayerId } = await supabase
           .from('profiles')
           .select('id, username')
-          .eq('player_id', value.toUpperCase())
+          .eq('player_id', value)
           .limit(1)
           .maybeSingle()
         profile = byPlayerId
@@ -479,7 +479,7 @@ export function SocialModal({ open, onClose, onJoinRoom }: { open: boolean; onCl
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !adding && sendRequest()}
-            placeholder="Kullanıcı adı veya Player ID (SK-XXXXXXXX)"
+            placeholder="Kullanıcı adı veya ID (örn: 1, 42)"
             aria-label="Arkadaş kullanıcı adı"
             disabled={adding}
             className="min-w-0 flex-1 rounded-xl bg-slate-800 px-3 py-3 text-sm text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400 disabled:opacity-50"
