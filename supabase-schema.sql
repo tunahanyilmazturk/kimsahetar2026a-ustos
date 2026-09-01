@@ -345,7 +345,10 @@ create trigger trg_room_timestamp
 -- LEADERBOARD VIEW
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create or replace view public.leaderboard as
+-- Eski view'u tamamen kaldır (sütun değişikliği için drop gerekir)
+drop view if exists public.leaderboard;
+
+create view public.leaderboard as
 select
   p.player_id,
   p.username,
