@@ -541,8 +541,8 @@ drop policy if exists "room_votes_select" on public.room_votes;
 drop policy if exists "room_votes_insert_own" on public.room_votes;
 drop policy if exists "room_votes_delete_own" on public.room_votes;
 create policy "room_votes_select" on public.room_votes for select using (true);
-create policy "room_votes_insert_own" on public.room_votes for insert with check (auth.uid() = voter_id);
-create policy "room_votes_delete_own" on public.room_votes for delete using (auth.uid() = voter_id);
+create policy "room_votes_insert_own" on public.room_votes for insert with check (auth.uid()::text = voter_id);
+create policy "room_votes_delete_own" on public.room_votes for delete using (auth.uid()::text = voter_id);
 
 -- ─── ROOM INVITES: davet eden ve davet edilen okuyup güncelleyebilir
 alter table public.room_invites enable row level security;
