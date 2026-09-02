@@ -44,3 +44,4 @@ commit-msg.txt
 .env
 .env.local
 .env.*local
+.vercel
