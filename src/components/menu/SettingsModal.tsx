@@ -22,6 +22,7 @@ export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
   const { settings, update, reset } = useSettings()
   const toast = useToast()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [activeTab, setActiveTab] = useState<'sound' | 'appearance' | 'game' | 'account'>('sound')
 
   const handleReset = () => {
     reset()
@@ -49,8 +50,20 @@ export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
           <p className="text-sm font-semibold text-indigo-200">Oyun deneyimini kişiselleştir</p>
           <p className="mt-1 text-xs leading-5 text-slate-400">Ayarlar otomatik kaydedilir ve bir sonraki oyunda uygulanır.</p>
         </div>
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1 ring-1 ring-slate-700/70 sm:grid-cols-4">
+          {([
+            ['sound', 'Ses'],
+            ['appearance', 'Görünüm'],
+            ['game', 'Oyun'],
+            ['account', 'Hesap'],
+          ] as const).map(([tab, label]) => (
+            <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={cn('min-h-10 rounded-lg px-2 py-2 text-xs font-bold transition-colors', activeTab === tab ? 'bg-indigo-500/25 text-indigo-200 ring-1 ring-indigo-400/40' : 'text-slate-500 hover:text-slate-300')}>
+              {label}
+            </button>
+          ))}
+        </div>
         {/* ─── Ses & Titreşim ───────────────────────────────────────── */}
-        <section>
+        {activeTab === 'sound' && <section>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Ses & Titreşim
           </h3>
@@ -77,18 +90,18 @@ export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
               onChange={(v) => update({ haptics: v })}
             />
           </div>
-        </section>
+        </section>}
 
-        <section>
+        {activeTab === 'appearance' && <section>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Görünüm & Erişilebilirlik</h3>
           <div className="space-y-2">
             <ToggleRow icon={<Eye className="h-5 w-5" />} label="Yüksek Kontrast" desc="Kartları ve metinleri daha belirgin yap" checked={settings.highContrast} onChange={(v) => update({ highContrast: v })} />
             <ToggleRow icon={<Type className="h-5 w-5" />} label="Büyük Yazı" desc="Arayüz metinlerini büyüt" checked={settings.largeText} onChange={(v) => update({ largeText: v })} />
           </div>
-        </section>
+        </section>}
 
         {/* ─── Oyun Varsayılanları ──────────────────────────────────── */}
-        <section>
+        {activeTab === 'game' && <section>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Oyun Varsayılanları
           </h3>
@@ -182,9 +195,14 @@ export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
               </div>
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* ─── Sıfırla ──────────────────────────────────────────────── */}
+        {activeTab === 'account' && <>
+        <div className="rounded-xl bg-slate-800/50 px-4 py-3 ring-1 ring-slate-700/60">
+          <p className="text-sm font-semibold text-slate-200">Ayar yönetimi</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">Tüm tercihler bu cihazda otomatik olarak saklanır.</p>
+        </div>
         <Button variant="danger" fullWidth onClick={handleReset}>
           <RotateCcw className="h-4 w-4" />
           Ayarları Sıfırla
@@ -200,6 +218,7 @@ export function SettingsModal({ open, onClose, onLogout }: SettingsModalProps) {
           {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
           {loggingOut ? 'Çıkış yapılıyor...' : 'Hesaptan Çıkış Yap'}
         </button>
+        </>}
       </div>
     </Modal>
   )
