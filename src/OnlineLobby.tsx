@@ -998,22 +998,6 @@ export function OnlineLobby({
           <ArrowLeft className="h-5 w-5" /> Ana Menü
         </button>
 
-        <div className="relative mb-4 overflow-hidden rounded-2xl border border-indigo-400/25 bg-linear-to-br from-indigo-500/20 via-slate-900/90 to-cyan-500/10 p-3.5 shadow-xl shadow-indigo-950/30">
-          <div className="absolute -right-5 -top-7 text-[5rem] leading-none opacity-10">🎭</div>
-          <div className="relative">
-            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-300 ring-1 ring-cyan-300/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> Online merkez
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-white">Ekibini topla.</h1>
-            <p className="mt-1 max-w-sm text-xs leading-4 text-slate-300">Arkadaşlarını davet et, gizli rolleri paylaş ve sahtekarı yakala.</p>
-            <div className="mt-2.5 flex max-w-sm gap-2 text-center">
-              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-cyan-300">3+</span><span className="ml-1 text-[9px] text-slate-400">oyuncu</span></div>
-              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-violet-300">6</span><span className="ml-1 text-[9px] text-slate-400">haneli kod</span></div>
-              <div className="flex-1 rounded-lg bg-slate-950/35 px-1.5 py-1 ring-1 ring-white/10"><span className="text-sm font-bold text-amber-300">1</span><span className="ml-1 text-[9px] text-slate-400">sahtekar</span></div>
-            </div>
-          </div>
-        </div>
-
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           <span className="h-px flex-1 bg-slate-800" /> Hızlı başlangıç <span className="h-px flex-1 bg-slate-800" />
         </div>
@@ -1080,22 +1064,6 @@ export function OnlineLobby({
             </div>
           </section>
 
-          {/* Nasıl oynanır */}
-          <section className="rounded-2xl border border-violet-400/20 bg-slate-900/80 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-400/10 text-violet-300 ring-1 ring-violet-300/20"><Users className="h-5 w-5" /></div>
-              <div>
-                <h2 className="font-bold text-white">Bir tur nasıl ilerler?</h2>
-                <p className="text-xs text-slate-400">Kısa, gizli ve bol şüpheli.</p>
-              </div>
-            </div>
-            <ol className="mt-4 grid gap-2 text-xs text-slate-300">
-              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 font-bold text-indigo-300">1</span> Odayı kur veya davet koduyla katıl.</li>
-              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-500/20 font-bold text-cyan-300">2</span> Gizli rolünü öğren ve doğal davran.</li>
-              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 font-bold text-amber-300">3</span> İpucunu ver, şüphelileri takip et.</li>
-              <li className="flex items-center gap-3 rounded-xl bg-slate-950/40 px-3 py-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 font-bold text-rose-300">4</span> Oyla; sahtekarı yakala veya kelimeyi tahmin et.</li>
-            </ol>
-          </section>
         </div>
       </div>
 

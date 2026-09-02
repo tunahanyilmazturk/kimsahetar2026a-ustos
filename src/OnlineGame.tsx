@@ -648,6 +648,9 @@ export function OnlineGame({
         if (isMeImpostor && room.winner === 'IMPOSTOR') questsApi.addProgress('winsAsImpostor')
         if (!isMeImpostor && room.winner === 'PLAYERS') questsApi.addProgress('winsAsPlayer')
         questsApi.addWeeklyProgress('gamesPlayed')
+        questsApi.addMonthlyProgress('gamesPlayed')
+        if (!isMeImpostor && caught) questsApi.addMonthlyProgress('wins')
+        if (!isMeImpostor && room.winner === 'PLAYERS') questsApi.addMonthlyProgress('winsAsPlayer')
 
         // Achievements
         const stats = statsApi.get()

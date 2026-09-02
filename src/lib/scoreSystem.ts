@@ -87,8 +87,11 @@ export function applyGameResult(args: {
       statsApi.addPoints(REWARDS.STREAK_BONUS.points)
     }
     questsApi.addWeeklyProgress('gamesPlayed')
+    questsApi.addMonthlyProgress('gamesPlayed')
     if (won) questsApi.addWeeklyProgress('wins')
+    if (won) questsApi.addMonthlyProgress('wins')
     if (won && !isImpostor) questsApi.addWeeklyProgress('winsAsPlayer')
+    if (won && !isImpostor) questsApi.addMonthlyProgress('winsAsPlayer')
     const profile = profileApi.get()
     const finalStats = statsApi.get()
     leaderboardApi.upsert({

@@ -72,3 +72,10 @@ export const WEEKLY_QUESTS: DailyQuest[] = [
   { id: 'weekly_detective_3', title: 'Usta Dedektif', emoji: '🕵️', desc: 'Bu hafta 3 sahtekâr yakala.', goal: 3, metric: 'winsAsPlayer', rewardCoins: 400, rewardXp: 300 },
 ]
 export const WEEKLY_QUEST_MAP: Record<string, DailyQuest> = Object.fromEntries(WEEKLY_QUESTS.map((q) => [q.id, q]))
+
+export const MONTHLY_QUESTS: DailyQuest[] = [
+  { id: 'monthly_games_30', title: 'Ayın Oyuncusu', emoji: '🌙', desc: 'Bu ay 30 oyun tamamla.', goal: 30, metric: 'gamesPlayed', rewardCoins: 900, rewardXp: 650 },
+  { id: 'monthly_wins_15', title: 'Zafer Koleksiyonu', emoji: '👑', desc: 'Bu ay 15 oyun kazan.', goal: 15, metric: 'wins', rewardCoins: 1200, rewardXp: 850 },
+  { id: 'monthly_detective_8', title: 'Efsane Dedektif', emoji: '🧠', desc: 'Bu ay 8 sahtekâr yakala.', goal: 8, metric: 'winsAsPlayer', rewardCoins: 1500, rewardXp: 1000 },
+]
+export const MONTHLY_QUEST_MAP: Record<string, DailyQuest> = Object.fromEntries(MONTHLY_QUESTS.map((q) => [q.id, q]))

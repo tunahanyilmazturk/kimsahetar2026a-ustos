@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   ACHIEVEMENTS: 'sahtekar:achievements',
   QUESTS: 'sahtekar:quests',
   WEEKLY_QUESTS: 'sahtekar:weekly-quests',
+  MONTHLY_QUESTS: 'sahtekar:monthly-quests',
   LEADERBOARD: 'sahtekar:leaderboard',
   SETTINGS: 'sahtekar:settings',
   AUTH: 'sahtekar:auth',
