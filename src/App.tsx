@@ -40,6 +40,7 @@ function AppInner() {
   useEffect(() => {
     audioApi.sync(settings)
     const onPointerDown = (event: PointerEvent) => {
+      audioApi.unlock()
       const target = event.target as HTMLElement | null
       if (target?.closest('button, [role="button"], input[type="range"]')) {
         audioApi.play('click')

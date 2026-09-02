@@ -7,9 +7,10 @@ let musicGain: GainNode | null = null
 let musicTimer: number | null = null
 
 function getContext(): AudioContext | null {
-  if (typeof window === 'undefined' || !('AudioContext' in window)) return null
-  audioContext ??= new AudioContext()
-  if (audioContext.state === 'suspended') void audioContext.resume()
+  if (typeof window === 'undefined') return null
+  const AudioContextClass = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioContextClass) return null
+  audioContext ??= new AudioContextClass()
   return audioContext
 }
 
@@ -30,16 +31,21 @@ function tone(frequency: number, duration: number, type: OscillatorType, volume:
 }
 
 export const audioApi = {
+  unlock() {
+    const ctx = getContext()
+    if (ctx?.state === 'suspended') void ctx.resume()
+  },
   play(name: SoundName = 'click') {
     if (!settingsApi.get().sound) return
+    this.unlock()
     const sounds: Record<SoundName, () => void> = {
-      click: () => tone(520, 0.055, 'sine', 0.035),
-      success: () => { tone(523, 0.1, 'sine', 0.045); tone(784, 0.16, 'sine', 0.04, 0.08) },
-      error: () => { tone(180, 0.12, 'sawtooth', 0.025); tone(140, 0.16, 'sawtooth', 0.02, 0.1) },
-      timer: () => tone(740, 0.08, 'square', 0.025),
-      reveal: () => { tone(330, 0.14, 'triangle', 0.035); tone(494, 0.24, 'triangle', 0.04, 0.12) },
-      vote: () => tone(260, 0.12, 'triangle', 0.035),
-      win: () => { tone(523, 0.12, 'sine', 0.045); tone(659, 0.12, 'sine', 0.045, 0.1); tone(784, 0.25, 'sine', 0.05, 0.2) },
+      click: () => tone(520, 0.07, 'sine', 0.11),
+      success: () => { tone(523, 0.12, 'sine', 0.13); tone(784, 0.18, 'sine', 0.12, 0.08) },
+      error: () => { tone(180, 0.14, 'sawtooth', 0.09); tone(140, 0.18, 'sawtooth', 0.08, 0.1) },
+      timer: () => tone(740, 0.1, 'square', 0.1),
+      reveal: () => { tone(330, 0.16, 'triangle', 0.11); tone(494, 0.26, 'triangle', 0.13, 0.12) },
+      vote: () => tone(260, 0.14, 'triangle', 0.11),
+      win: () => { tone(523, 0.14, 'sine', 0.13); tone(659, 0.14, 'sine', 0.13, 0.1); tone(784, 0.28, 'sine', 0.15, 0.2) },
     }
     sounds[name]()
   },
