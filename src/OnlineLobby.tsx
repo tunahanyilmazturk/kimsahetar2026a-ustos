@@ -11,6 +11,7 @@ import { supabase } from './lib/supabase'
 import { CATEGORIES } from './constants'
 import { pickWord, pickImpostor } from './utils/wordPool'
 import { cn } from './utils/cn'
+import { clearRememberedOnlineRoom, rememberOnlineRoom } from './lib/roomRecovery'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ export function OnlineLobby({
         .single()
 
       if (!room) {
+        clearRememberedOnlineRoom()
         setActiveRoom(null)
         setActiveRoomId(null)
         setPlayers([])
@@ -263,7 +265,7 @@ export function OnlineLobby({
 
   // ─── Oyun başlayınca otomatik geçiş ──────────────────────────────────────
   useEffect(() => {
-    if ((roomState === 'REVEAL' || roomState === 'PLAYING') && activeRoomId && activeRoom) {
+    if (roomState !== 'LOBBY' && activeRoomId && activeRoom) {
       onEnterRoom({ roomId: activeRoomId, roomCode: activeRoom })
     }
   }, [roomState, activeRoomId, activeRoom, onEnterRoom])
@@ -334,6 +336,7 @@ export function OnlineLobby({
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
+      rememberOnlineRoom(room.id, room.code)
       toast.success(`Oda ${room.code} oluşturuldu`)
     } catch {
       toast.error('Bir hata oluştu')
@@ -365,11 +368,6 @@ export function OnlineLobby({
         return
       }
 
-      if (room.state !== 'LOBBY') {
-        toast.error('Bu oda zaten dolu veya oyun başlamış')
-        return
-      }
-
       // Önce oyuncu zaten odada mı kontrol et
       const { data: existing } = await supabase
         .from('room_players')
@@ -379,14 +377,19 @@ export function OnlineLobby({
         .maybeSingle()
 
       let joinError: { message: string } | null = null
-      if (existing) {
-        // Zaten odada — hazır durumunu güncelle
+      if (room.state !== 'LOBBY' && !existing) {
+        toast.error('Bu oyun başlamış; yalnızca daha önce bu odada olan oyuncular geri dönebilir')
+        return
+      }
+
+      if (existing && room.state === 'LOBBY') {
+        // Lobiye geri dönen oyuncunun hazır durumunu yeniden seçmesini iste.
         const { error } = await supabase
           .from('room_players')
           .update({ is_ready: false })
           .eq('id', existing.id)
         joinError = error
-      } else {
+      } else if (!existing) {
         // Yeni katılım
         const { error } = await supabase
           .from('room_players')
@@ -405,6 +408,7 @@ export function OnlineLobby({
 
       setActiveRoom(room.code)
       setActiveRoomId(room.id)
+      rememberOnlineRoom(room.id, room.code)
       setRoomCode('')
       toast.success(`Odaya ${room.code} katıldın`)
     } catch {
@@ -484,26 +488,18 @@ export function OnlineLobby({
     })))
   }, [myUserId])
 
-  // ─── Odadan ayrıl ────────────────────────────────────────────────────────
-  // Sadece room_players satırını sil — trigger gerisini halleder:
-  //   - Son oyuncu ayrılırsa oda otomatik silinir
-  //   - Host ayrılırsa host transferi yapılır
-  //   - Oyun sırasında <3 oyuncu kalırsa oyun FINISHED olur
+  // ─── Lobiye dön (oda üyeliğini koru) ────────────────────────────────────
+  // Yanlışlıkla çıkışta oda, rol ve oyuncu kaydı silinmez. Böylece kullanıcı
+  // ana menüden veya online ekrandan aynı odaya geri dönebilir.
   const leaveRoom = async () => {
     if (!activeRoomId || !myUserId) return
-
-    await supabase
-      .from('room_players')
-      .delete()
-      .eq('room_id', activeRoomId)
-      .eq('user_id', myUserId)
-
+    if (activeRoom) rememberOnlineRoom(activeRoomId, activeRoom)
     setActiveRoom(null)
     setActiveRoomId(null)
     setPlayers([])
     setIsHost(false)
     setChat([])
-    toast.info('Odadan ayrıldın')
+    toast.info('Lobiye döndün — odaya daha sonra geri katılabilirsin')
   }
 
   // ─── Hazır durumunu değiştir ─────────────────────────────────────────────

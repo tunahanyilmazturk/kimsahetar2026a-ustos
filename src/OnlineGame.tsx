@@ -17,6 +17,7 @@ import { WORD_POOL } from './constants'
 import { pickWord, pickImpostor } from './utils/wordPool'
 import { countVotes, hintSimilarity, isGuessCorrect, isTooSimilarHint, isValidHint } from './utils/gameUtils'
 import { cn } from './utils/cn'
+import { rememberOnlineRoom } from './lib/roomRecovery'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -685,10 +686,7 @@ export function OnlineGame({
   // ─── Leave room ─────────────────────────────────────────────────────────
   const leaveRoom = async () => {
     if (!myUserId) return
-    await supabase.from('room_players').delete().eq('room_id', roomId).eq('user_id', myUserId)
-    if (isHost) {
-      await supabase.from('rooms').delete().eq('id', roomId)
-    }
+    rememberOnlineRoom(roomId, roomCode)
     onExit()
   }
 

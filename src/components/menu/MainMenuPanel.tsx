@@ -31,6 +31,7 @@ import { SettingsModal } from './SettingsModal'
 import { useToast } from '../common/toast-context'
 import { cn } from '../../utils/cn'
 import { SocialModal } from './SocialModal'
+import { getRememberedOnlineRoom } from '../../lib/roomRecovery'
 
 export interface MainMenuPanelProps {
   /** Offline oyun başlatıldığında çağrılır. */
@@ -52,6 +53,7 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
   const [socialOpen, setSocialOpen] = useState(false)
   const [pendingRequests, setPendingRequests] = useState(0)
   const [pendingRoomInvites, setPendingRoomInvites] = useState(0)
+  const rememberedRoom = getRememberedOnlineRoom()
 
   // Pending arkadaş isteklerini + oda davetlerini yükle
   useEffect(() => {
@@ -237,6 +239,12 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
             <span className="relative z-10 flex-1 text-left"><span className="block">Online Oyna</span><span className="block text-xs font-medium text-slate-400">Arkadaşlarınla aynı odaya katıl</span></span>
             <span className="relative z-10 rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] uppercase tracking-wider text-cyan-300">Beta</span>
           </Button>
+          {rememberedRoom && onJoinRoom && (
+            <button type="button" onClick={() => onJoinRoom(rememberedRoom.roomCode)} className="mt-2 flex min-h-11 w-full items-center justify-between rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-4 text-left text-sm text-cyan-200 transition-colors hover:bg-cyan-400/10">
+              <span><span className="block font-semibold">Önceki odaya dön</span><span className="text-xs text-slate-500">Kaldığın oyuna geri katıl</span></span>
+              <span className="rounded-lg bg-slate-950/60 px-2.5 py-1 font-mono text-xs tracking-widest text-cyan-300">{rememberedRoom.roomCode}</span>
+            </button>
+          )}
         </motion.div>
         <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
           <Button size="lg" variant="secondary" fullWidth onClick={() => setLeaderboardOpen(true)} className="group relative overflow-hidden border border-amber-400/15 hover:border-amber-300/35">
