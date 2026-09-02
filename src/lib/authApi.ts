@@ -40,7 +40,12 @@ export const authApi = {
   /** Mevcut session'ı async döndürür. */
   async currentAsync(): Promise<AuthRecord | null> {
     if (!isSupabaseConfigured) return storage.get<AuthRecord | null>(LOCAL_SESSION, null)
-    const { data, error } = await supabase.auth.getSession()
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 5000)),
+    ])
+    if (!result) return null
+    const { data, error } = result
     if (error || !data.session) return null
     return userToRecord(data.session.user)
   },
