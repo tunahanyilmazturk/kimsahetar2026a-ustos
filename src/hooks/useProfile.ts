@@ -25,11 +25,12 @@ export function useProfile() {
     const onStorage = (e: StorageEvent) => {
       if (e.key && e.key.startsWith('sahtekar:')) refresh()
     }
+    const onCustomStorage = (event: Event) => onStorage(event as StorageEvent)
     window.addEventListener('storage', onStorage)
-    window.addEventListener('sahtekar:storage', onStorage)
+    window.addEventListener('sahtekar:storage', onCustomStorage)
     return () => {
       window.removeEventListener('storage', onStorage)
-      window.removeEventListener('sahtekar:storage', onStorage)
+      window.removeEventListener('sahtekar:storage', onCustomStorage)
     }
   }, [refresh])
 

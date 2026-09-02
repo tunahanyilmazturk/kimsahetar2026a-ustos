@@ -14,6 +14,7 @@ import { statsApi, xpForLevel, xpForLevelStart, MAX_LEVEL } from '../../lib/prof
 import { cn } from '../../utils/cn'
 
 type Tab = 'profile' | 'avatars' | 'frames' | 'achievements'
+type RarityFilter = 'ALL' | 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
 
 export interface MarketProfileModalProps {
   open: boolean
@@ -34,6 +35,8 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   const toast = useToast()
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(profile.username)
+  const [marketSearch, setMarketSearch] = useState('')
+  const [rarityFilter, setRarityFilter] = useState<RarityFilter>('ALL')
   const ownedAvatars = inventory.avatars.length
   const ownedFrames = inventory.frames.length
   const stats = statsApi.get()
@@ -50,6 +53,14 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
   const xpProgress = isMaxLevel ? 100 : xpNeeded > 0 ? Math.min(100, Math.round((xpInLevel / xpNeeded) * 100)) : 0
   // Mağlubiyet
   const losses = stats.gamesPlayed - stats.wins
+  const filteredAvatars = ALL_AVATARS.filter((item) =>
+    (rarityFilter === 'ALL' || item.rarity === rarityFilter) && item.name.toLocaleLowerCase('tr-TR').includes(marketSearch.toLocaleLowerCase('tr-TR')),
+  )
+  const filteredFrames = AVATAR_FRAMES.filter((item) =>
+    (rarityFilter === 'ALL' || item.rarity === rarityFilter) && item.name.toLocaleLowerCase('tr-TR').includes(marketSearch.toLocaleLowerCase('tr-TR')),
+  )
+  const sortedAvatars = [...filteredAvatars].sort((a, b) => a.price - b.price)
+  const sortedFrames = [...filteredFrames].sort((a, b) => a.price - b.price)
 
   const handleSaveName = () => {
     const trimmed = nameDraft.trim()
@@ -280,12 +291,10 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
 
       {/* ─── Avatarlar tab ───────────────────────────────────────────── */}
       {tab === 'avatars' && (
-        <motion.div
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[48svh] overflow-y-auto pr-1"
-        >
-          {ALL_AVATARS.map((a) => {
+        <div className="space-y-3">
+          <MarketFilters search={marketSearch} onSearch={setMarketSearch} rarity={rarityFilter} onRarity={setRarityFilter} resultCount={sortedAvatars.length} />
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[42svh] overflow-y-auto pr-1">
+          {sortedAvatars.map((a) => {
             const owned = inventory.avatars.includes(a.id)
             const equipped = inventory.equippedAvatar === a.id
             return (
@@ -317,17 +326,17 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
               </div>
             )
           })}
-        </motion.div>
+          {sortedAvatars.length === 0 && <EmptyMarketState />}
+          </motion.div>
+        </div>
       )}
 
       {/* ─── Çerçeveler tab ──────────────────────────────────────────── */}
       {tab === 'frames' && (
-        <motion.div
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[48svh] overflow-y-auto pr-1"
-        >
-          {AVATAR_FRAMES.map((f) => {
+        <div className="space-y-3">
+          <MarketFilters search={marketSearch} onSearch={setMarketSearch} rarity={rarityFilter} onRarity={setRarityFilter} resultCount={sortedFrames.length} />
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="grid min-w-0 grid-cols-2 sm:grid-cols-3 items-start gap-3 max-h-[42svh] overflow-y-auto pr-1">
+          {sortedFrames.map((f) => {
             const owned = inventory.frames.includes(f.id)
             const equipped = inventory.equippedFrame === f.id
             return (
@@ -363,7 +372,9 @@ export function MarketProfileModal({ open, onClose }: MarketProfileModalProps) {
               </div>
             )
           })}
-        </motion.div>
+          {sortedFrames.length === 0 && <EmptyMarketState />}
+          </motion.div>
+        </div>
       )}
 
       {/* ─── Başarımlar tab ─────────────────────────────────────────── */}
@@ -473,6 +484,20 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <p className="font-semibold text-slate-100 truncate">{value}</p>
     </div>
   )
+}
+
+function MarketFilters({ search, onSearch, rarity, onRarity, resultCount }: { search: string; onSearch: (value: string) => void; rarity: RarityFilter; onRarity: (value: RarityFilter) => void; resultCount: number }) {
+  const options: { value: RarityFilter; label: string }[] = [
+    { value: 'ALL', label: 'Tümü' }, { value: 'COMMON', label: 'Yaygın' }, { value: 'RARE', label: 'Nadir' }, { value: 'EPIC', label: 'Epik' }, { value: 'LEGENDARY', label: 'Efsanevi' },
+  ]
+  return <div className="rounded-xl border border-slate-700/70 bg-slate-800/50 p-3">
+    <div className="flex items-center gap-2"><div className="relative min-w-0 flex-1"><Eye className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Koleksiyonda ara..." aria-label="Koleksiyonda ara" className="w-full rounded-lg bg-slate-950/70 py-2 pl-9 pr-3 text-sm text-slate-100 ring-1 ring-slate-700 outline-none placeholder:text-slate-600 focus:ring-indigo-400" /></div><span className="shrink-0 text-xs text-slate-500">{resultCount} ürün</span></div>
+    <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">{options.map((option) => <button key={option.value} type="button" onClick={() => onRarity(option.value)} className={cn('min-h-8 shrink-0 rounded-lg px-2.5 text-[11px] font-semibold transition-colors', rarity === option.value ? 'bg-indigo-500/25 text-indigo-200 ring-1 ring-indigo-400/50' : 'bg-slate-900/70 text-slate-500 hover:text-slate-200')}>{option.label}</button>)}</div>
+  </div>
+}
+
+function EmptyMarketState() {
+  return <div className="col-span-full rounded-xl border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">Bu filtreye uygun ürün bulunamadı.</div>
 }
 
 function StatCard({ icon: Icon, label, value, color }: { icon: typeof Trophy; label: string; value: string | number; color: string }) {

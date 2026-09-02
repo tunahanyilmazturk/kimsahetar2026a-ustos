@@ -41,6 +41,20 @@ const FRAME_SPRITE_POSITIONS: Record<string, string> = {
   frame_cosmic: '0% 100%', frame_phantom: '33.333% 100%', frame_halo: '66.666% 100%', frame_void: '100% 100%',
 }
 
+const CATEGORY_AVATAR_POSITIONS: Record<string, string> = {
+  avatar_cosmic_scout: '0% 0%', avatar_star_captain: '33.333% 0%', avatar_moon_oracle: '66.666% 0%', avatar_void_walker: '100% 0%',
+  avatar_cyber_agent: '0% 33.333%', avatar_neon_hacker: '33.333% 33.333%', avatar_data_detective: '66.666% 33.333%', avatar_robo_bluffer: '100% 33.333%',
+  avatar_moss_guardian: '0% 66.666%', avatar_forest_scout: '33.333% 66.666%', avatar_spirit_fox: '66.666% 66.666%', avatar_grove_witch: '100% 66.666%',
+  avatar_masked_mole: '0% 100%', avatar_shadow_jester: '33.333% 100%', avatar_mystery_owl: '66.666% 100%', avatar_silent_detective: '100% 100%',
+}
+
+const CATEGORY_FRAME_POSITIONS: Record<string, string> = {
+  frame_neon_grid: '0% 0%', frame_neon_pulse: '33.333% 0%', frame_circuit_blue: '66.666% 0%', frame_circuit_violet: '100% 0%',
+  frame_fire_ring: '0% 33.333%', frame_ice_ring: '33.333% 33.333%', frame_thunder_ring: '66.666% 33.333%', frame_emerald_flame: '100% 33.333%',
+  frame_royal_crown: '0% 66.666%', frame_royal_ruby: '33.333% 66.666%', frame_royal_sapphire: '66.666% 66.666%', frame_royal_emerald: '100% 66.666%',
+  frame_shadow_mist: '0% 100%', frame_shadow_eye: '33.333% 100%', frame_shadow_moon: '66.666% 100%', frame_shadow_rift: '100% 100%',
+}
+
 /**
  * Avatar bileşeni — emoji fallback ile gösterim.
  * Çerçeve varsa rarity'ye göre glow/shimmer class'ları uygulanır.
@@ -60,12 +74,12 @@ export function Avatar({ avatarId, frameId, size = 'md', className, hideFrame }:
       )}
       aria-label="Avatar"
     >
-      {SPRITE_POSITIONS[avatarId] || PREMIUM_SPRITE_POSITIONS[avatarId] ? (
+      {SPRITE_POSITIONS[avatarId] || PREMIUM_SPRITE_POSITIONS[avatarId] || CATEGORY_AVATAR_POSITIONS[avatarId] ? (
         <span
           className="absolute inset-0 overflow-hidden rounded-full bg-no-repeat"
           style={{
-            backgroundImage: `url('${PREMIUM_SPRITE_POSITIONS[avatarId] ? '/premium-avatar-sprite.png' : '/avatar-sprite.png'}')`,
-            backgroundPosition: PREMIUM_SPRITE_POSITIONS[avatarId] ?? SPRITE_POSITIONS[avatarId],
+            backgroundImage: `url('${CATEGORY_AVATAR_POSITIONS[avatarId] ? '/category-avatar-sprite.png' : PREMIUM_SPRITE_POSITIONS[avatarId] ? '/premium-avatar-sprite.png' : '/avatar-sprite.png'}')`,
+            backgroundPosition: CATEGORY_AVATAR_POSITIONS[avatarId] ?? PREMIUM_SPRITE_POSITIONS[avatarId] ?? SPRITE_POSITIONS[avatarId],
             backgroundSize: '400% 400%',
           }}
           aria-hidden
@@ -73,10 +87,10 @@ export function Avatar({ avatarId, frameId, size = 'md', className, hideFrame }:
       ) : (
         <span className="leading-none select-none" aria-hidden>{avatarEmoji(avatarId)}</span>
       )}
-      {frame && FRAME_SPRITE_POSITIONS[frame.id] && (
+      {frame && (FRAME_SPRITE_POSITIONS[frame.id] || CATEGORY_FRAME_POSITIONS[frame.id]) && (
         <span
           className="pointer-events-none absolute -inset-[14%] z-10 bg-no-repeat"
-          style={{ backgroundImage: "url('/frame-sprite.png')", backgroundPosition: FRAME_SPRITE_POSITIONS[frame.id], backgroundSize: '400% 400%' }}
+          style={{ backgroundImage: `url('${CATEGORY_FRAME_POSITIONS[frame.id] ? '/category-frame-sprite.png' : '/frame-sprite.png'}')`, backgroundPosition: CATEGORY_FRAME_POSITIONS[frame.id] ?? FRAME_SPRITE_POSITIONS[frame.id], backgroundSize: '400% 400%' }}
           aria-hidden
         />
       )}

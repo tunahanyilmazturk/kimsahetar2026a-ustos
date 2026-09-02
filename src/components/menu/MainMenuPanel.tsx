@@ -10,9 +10,7 @@ import {
   Sparkles,
   Award,
   CalendarCheck,
-  Home,
   Users,
-  Menu,
   X,
   LogOut,
   Flame,
@@ -133,9 +131,9 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
         className="relative z-10 mb-8 max-w-sm text-center text-sm leading-6 text-slate-400"
       >
         <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300">
-          <Sparkles className="h-3 w-3" /> Gizli rol · hızlı turlar
+          <Sparkles className="h-3 w-3" /> Gizli rol · bolca şüphe
         </span>
-        <span className="block">Aynı cihazda oynanan sosyal-deduction oyunu. Sahtekarı yakala veya kelimeyi tahmin et!</span>
+        <span className="block">Arkadaşlarına güvenme… Aranızda kelimeyi bilmeyen biri var. İpucunu ver, blöfünü yap ve sahtekarı yakala!</span>
       </motion.div>
 
       {quickMenuOpen && <button type="button" aria-label="Menüyü kapat" onClick={() => setQuickMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/45 sm:hidden" />}
@@ -150,14 +148,15 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
           </div>
         </div>
       )}
-      <nav className="fixed inset-x-3 bottom-3 z-40 mx-auto flex h-[4.25rem] max-w-sm items-center justify-between rounded-[1.35rem] border border-slate-700/80 bg-slate-900 px-2 shadow-2xl shadow-black/50 sm:hidden" aria-label="Mobil menü">
-        <MobileNavItem icon={<Home className="h-4 w-4" />} label="Ana Sayfa" active />
-        <MobileNavItem icon={<Gamepad2 className="h-4 w-4" />} label="Oyna" onClick={onPlay} primary />
-        <button type="button" onClick={() => setQuickMenuOpen(!quickMenuOpen)} aria-label="Tüm menüleri aç" className={cn('relative -mt-8 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full border-[5px] border-slate-950 text-white shadow-xl transition-all', quickMenuOpen ? 'bg-fuchsia-500 shadow-fuchsia-500/30' : 'bg-linear-to-br from-indigo-500 to-cyan-500 shadow-indigo-500/30')}>
-          {quickMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}<span className="text-[9px] font-semibold">Menü</span>
+      <nav className="fixed inset-x-3 bottom-3 z-40 mx-auto flex h-[4.25rem] max-w-sm items-center justify-between overflow-hidden rounded-[1.35rem] border border-indigo-300/30 bg-slate-950/95 px-2 shadow-2xl shadow-black/60 sm:hidden" aria-label="Mobil menü">
+        <MobileNavItem image="/brand-emblem.png" label="Ana Sayfa" active />
+        <MobileNavItem image="/menu-icons/offline-play.png" label="Oyna" onClick={onPlay} primary />
+        <button type="button" onClick={() => setQuickMenuOpen(!quickMenuOpen)} aria-label="Tüm menüleri aç" className={cn('relative -mt-8 flex h-16 w-16 shrink-0 flex-col items-center justify-end overflow-hidden rounded-full text-white transition-transform hover:scale-105', quickMenuOpen ? 'bg-fuchsia-950/90' : 'bg-transparent')}>
+          {!quickMenuOpen && <img src="/brand-emblem.png" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-contain" />}
+          {quickMenuOpen && <X className="absolute top-3 h-6 w-6" />}<span className="relative z-10 mb-1 rounded-full bg-slate-950/75 px-2 py-0.5 text-[9px] font-semibold">Menü</span>
         </button>
-        <MobileNavItem icon={<User className="h-4 w-4" />} label="Profil" onClick={() => setProfileOpen(true)} />
-        <MobileNavItem icon={<CalendarCheck className="h-4 w-4" />} label="Görevler" onClick={() => setQuestsOpen(true)} badge={claimableQuests} />
+        <MobileNavItem image="/menu-icons/market.png" label="Profil" onClick={() => setProfileOpen(true)} />
+        <MobileNavItem image="/menu-icons/daily-quests.png" label="Görevler" onClick={() => setQuestsOpen(true)} badge={claimableQuests} />
       </nav>
 
       {/* ─── Profil Kartı ───────────────────────────────────────────── */}
@@ -168,10 +167,12 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
         transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
         onClick={() => setProfileOpen(true)}
         aria-label="Profili düzenle"
-        className="relative mb-6 flex w-full max-w-md items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/95 px-4 py-3 shadow-2xl shadow-indigo-950/30 transition-all hover:-translate-y-0.5 hover:border-indigo-400/40 hover:bg-slate-800 min-h-11"
+        className="group relative mb-6 flex w-full max-w-md items-center gap-3 overflow-hidden rounded-2xl border border-indigo-300/20 bg-slate-900/95 px-4 py-3 shadow-2xl shadow-indigo-950/30 transition-all hover:-translate-y-0.5 hover:border-indigo-400/50 hover:bg-slate-800 min-h-11"
       >
-        <Avatar avatarId={inventory.equippedAvatar} frameId={inventory.equippedFrame} size="md" />
-        <div className="flex-1 text-left">
+        <img src="/profile-card-art.png" alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55 transition-opacity duration-300 group-hover:opacity-70" />
+        <span className="pointer-events-none absolute inset-0 bg-linear-to-r from-slate-950/75 via-slate-950/45 to-indigo-950/20" />
+        <span className="relative z-10"><Avatar avatarId={inventory.equippedAvatar} frameId={inventory.equippedFrame} size="md" /></span>
+        <div className="relative z-10 flex-1 text-left">
           <p className="font-semibold text-slate-100">{profile.username}</p>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="inline-flex items-center gap-1">
@@ -205,7 +206,7 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
             <span className="font-mono text-cyan-400/60">{profile.playerId}</span>
           </div>
         </div>
-        <User className="h-5 w-5 text-slate-500" />
+        <User className="relative z-10 h-5 w-5 text-slate-400" />
       </motion.button>
 
       {/* ─── Ana Butonlar ───────────────────────────────────────────── */}
@@ -350,10 +351,10 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
   )
 }
 
-function MobileNavItem({ icon, label, onClick, active, primary, badge = 0 }: { icon: React.ReactNode; label: string; onClick?: () => void; active?: boolean; primary?: boolean; badge?: number }) {
+function MobileNavItem({ image, label, onClick, active, primary, badge = 0 }: { image: string; label: string; onClick?: () => void; active?: boolean; primary?: boolean; badge?: number }) {
   return (
-    <button type="button" onClick={onClick} className={cn('relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors', primary ? 'bg-indigo-500/20 text-indigo-200' : active ? 'text-indigo-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100')}>
-      {icon}<span>{label}</span>
+    <button type="button" onClick={onClick} className={cn('relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium transition-colors', primary ? 'bg-indigo-500/20 text-indigo-200' : active ? 'text-indigo-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100')}>
+      <img src={image} alt="" aria-hidden="true" className="h-7 w-9 object-contain" /><span>{label}</span>
       {badge > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-white">{badge}</span>}
     </button>
   )

@@ -41,8 +41,28 @@ export const SHOP_AVATARS: ShopAvatar[] = [
   { id: 'avatar_blossom', name: 'Kalp Bahçesi', file: 'blossom', price: 4000, rarity: 'LEGENDARY' },
 ]
 
+/** Kategori seti: Kozmik, Siber, Doğa ve Gizemli karakterler. */
+export const CATEGORY_AVATARS: ShopAvatar[] = [
+  { id: 'avatar_cosmic_scout', name: 'Kozmik İz Sürücü', file: 'cosmic-scout', price: 2400, rarity: 'EPIC' },
+  { id: 'avatar_star_captain', name: 'Yıldız Kaptanı', file: 'star-captain', price: 2800, rarity: 'LEGENDARY' },
+  { id: 'avatar_moon_oracle', name: 'Ay Kahini', file: 'moon-oracle', price: 3200, rarity: 'LEGENDARY' },
+  { id: 'avatar_void_walker', name: 'Boşluk Gezgini', file: 'void-walker', price: 3600, rarity: 'LEGENDARY' },
+  { id: 'avatar_cyber_agent', name: 'Siber Ajan', file: 'cyber-agent', price: 1300, rarity: 'EPIC' },
+  { id: 'avatar_neon_hacker', name: 'Neon Hacker', file: 'neon-hacker', price: 1600, rarity: 'EPIC' },
+  { id: 'avatar_data_detective', name: 'Veri Dedektifi', file: 'data-detective', price: 1900, rarity: 'EPIC' },
+  { id: 'avatar_robo_bluffer', name: 'Robo Bluffçu', file: 'robo-bluffer', price: 2200, rarity: 'EPIC' },
+  { id: 'avatar_moss_guardian', name: 'Yosun Muhafızı', file: 'moss-guardian', price: 700, rarity: 'RARE' },
+  { id: 'avatar_forest_scout', name: 'Orman İzci', file: 'forest-scout', price: 800, rarity: 'RARE' },
+  { id: 'avatar_spirit_fox', name: 'Ruh Tilkisi', file: 'spirit-fox', price: 1100, rarity: 'EPIC' },
+  { id: 'avatar_grove_witch', name: 'Koruluk Cadısı', file: 'grove-witch', price: 1400, rarity: 'EPIC' },
+  { id: 'avatar_masked_mole', name: 'Maskeli Köstebek', file: 'masked-mole', price: 600, rarity: 'RARE' },
+  { id: 'avatar_shadow_jester', name: 'Gölge Soytarı', file: 'shadow-jester', price: 1000, rarity: 'RARE' },
+  { id: 'avatar_mystery_owl', name: 'Gizem Baykuşu', file: 'mystery-owl', price: 1500, rarity: 'EPIC' },
+  { id: 'avatar_silent_detective', name: 'Sessiz Dedektif', file: 'silent-detective', price: 1800, rarity: 'EPIC' },
+]
+
 /** Tüm avatarlar (başlangıç + market). */
-export const ALL_AVATARS: ShopAvatar[] = [...STARTER_AVATARS, ...SHOP_AVATARS]
+export const ALL_AVATARS: ShopAvatar[] = [...STARTER_AVATARS, ...SHOP_AVATARS, ...CATEGORY_AVATARS]
 
 /** ID -> ShopAvatar eşlemesi. */
 export const AVATAR_MAP: Record<string, ShopAvatar> = Object.fromEntries(
