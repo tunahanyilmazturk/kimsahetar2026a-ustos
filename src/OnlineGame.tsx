@@ -264,6 +264,12 @@ export function OnlineGame({
   const myVote = myUserId ? votes[myUserId] : undefined
   const allVoted = players.length > 0 && players.every((p) => votes[p.user_id])
   const hintsThisRound = chat.filter((c) => c.message_type === 'hint')
+  // Botlar başlangıç teklifini anında kabul eder. Bot kimlikleri gerçek auth
+  // kullanıcısı olmadığı için bunu room_votes tablosuna yazmak yerine tüm
+  // istemcilerde aynı sentetik sonuçla gösteriyoruz.
+  const startVoteResults = room?.vote_requested
+    ? { ...votes, ...Object.fromEntries(players.filter((player) => player.is_bot).map((player) => [player.user_id, '__START_YES__'])) }
+    : votes
 
   // ─── Host: Start game ───────────────────────────────────────────────────
   const startGame = useCallback(async () => {
@@ -491,10 +497,10 @@ export function OnlineGame({
   // Host, tüm oyuncular karar verdikten sonra çoğunluğa göre PLAYING → VOTING geçişini yapar.
   useEffect(() => {
     if (!isHost || room?.state !== 'PLAYING' || !room.vote_requested || players.length === 0) return
-    const decided = players.every((p) => votes[p.user_id] === '__START_YES__' || votes[p.user_id] === '__START_NO__')
+    const decided = players.every((p) => p.is_bot || startVoteResults[p.user_id] === '__START_YES__' || startVoteResults[p.user_id] === '__START_NO__')
     if (!decided || startVoteLockRef.current) return
     startVoteLockRef.current = true
-    const yes = players.filter((p) => votes[p.user_id] === '__START_YES__').length
+    const yes = players.filter((p) => startVoteResults[p.user_id] === '__START_YES__').length
     const nextState = yes > players.length / 2 ? 'VOTING' : 'PLAYING'
     void (async () => {
       const { error } = await supabase.from('room_votes').delete().eq('room_id', roomId)
@@ -507,7 +513,7 @@ export function OnlineGame({
       if (roomError) toast.error('Oylama başlatılamadı. Tekrar dene.')
       if (nextState === 'PLAYING') startVoteLockRef.current = false
     })()
-  }, [isHost, room?.state, players, votes, roomId, toast])
+  }, [isHost, room?.state, room?.vote_requested, players, startVoteResults, roomId, toast])
 
   // ─── Host: Finish voting ────────────────────────────────────────────────
   const finishVoting = async () => {
@@ -778,7 +784,7 @@ export function OnlineGame({
         sendHint={sendHint}
         passTurn={passTurn}
         timeLeft={timeLeft}
-        startVotes={votes}
+        startVotes={startVoteResults}
         castStartVote={castStartVote}
         requestVoteStart={requestVoteStart}
         guessText={guessText}
