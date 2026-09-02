@@ -10,6 +10,7 @@ import { achievementsApi } from './lib/achievementsApi'
 import { questsApi } from './lib/questsApi'
 import { useSettings } from './hooks/useSettings'
 import { WelcomeIntro } from './components/auth/WelcomeIntro'
+import { audioApi } from './lib/audio'
 
 // OfflineGame + OnlineGame lazy-load ile ayrı chunk
 const OfflineGame = lazy(() =>
@@ -36,6 +37,23 @@ function AppInner() {
   const { settings } = useSettings()
 
   // İlk yüklemede session'ı kontrol et + auth state değişimini dinle
+  useEffect(() => {
+    audioApi.sync(settings)
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('button, [role="button"], input[type="range"]')) {
+        audioApi.play('click')
+        audioApi.haptic(8)
+      }
+      audioApi.startMusic()
+    }
+    document.addEventListener('pointerdown', onPointerDown, { passive: true })
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      audioApi.stopMusic()
+    }
+  }, [settings])
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
     let lastUserId: string | null = null
