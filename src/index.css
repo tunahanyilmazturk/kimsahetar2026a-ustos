@@ -27,6 +27,26 @@ body {
   background-color: #020617;
   color: #e2e8f0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobil tarayıcı çentikleri ve alt gesture alanı için ortak yardımcılar. */
+.safe-area-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-area-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 639px) {
+  /* iOS input odaklanırken sayfayı otomatik yakınlaştırmasın. */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* ---- Custom Animations ---- */

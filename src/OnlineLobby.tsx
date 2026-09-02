@@ -943,9 +943,9 @@ export function OnlineLobby({
   // ODA OLUŞTURMA / KATILMA GÖRÜNÜMÜ
   // ═══════════════════════════════════════════════════════════════════════
   return (
-    <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 px-4 py-5 text-slate-100">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-indigo-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 top-40 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="safe-area-top safe-area-bottom relative min-h-dvh w-full overflow-hidden bg-slate-950 px-4 py-5 text-slate-100">
+      <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-indigo-600/20" />
+      <div className="pointer-events-none absolute -right-24 top-40 h-72 w-72 rounded-full bg-cyan-500/10" />
       <div className="mx-auto w-full max-w-md">
         <button type="button" onClick={onExit} className="relative mb-5 flex min-h-10 items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white">
           <ArrowLeft className="h-5 w-5" /> Ana Menü
@@ -1004,7 +1004,10 @@ export function OnlineLobby({
                 maxLength={6}
                 placeholder="ABC123"
                 aria-label="Oda kodu"
-                className="min-w-0 flex-1 rounded-xl bg-slate-950 px-4 font-mono tracking-widest text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400"
+                inputMode="text"
+                autoCapitalize="characters"
+                enterKeyHint="go"
+                className="min-h-11 min-w-0 flex-1 rounded-xl bg-slate-950 px-4 font-mono tracking-widest text-slate-100 ring-1 ring-slate-700 focus:outline-none focus:ring-cyan-400"
               />
               <Button disabled={roomCode.length < 4 || loading} onClick={() => joinRoom()}>
                 Katıl

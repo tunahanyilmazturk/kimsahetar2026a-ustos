@@ -1361,7 +1361,7 @@ function PlayingPhase({
   ]
 
   return (
-    <div className="flex h-svh w-full flex-col bg-slate-950 text-slate-100">
+    <div className="flex h-dvh w-full flex-col bg-slate-950 text-slate-100">
       {/* ─── Header (sabit) — Tur + Sıra + Timer ─────────────────────── */}
       <div className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-2.5">
         <div className="mx-auto w-full max-w-md">
@@ -1618,7 +1618,7 @@ function PlayingPhase({
       </div>
 
       {/* ─── Alt bar (sabit) ─────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-indigo-400/15 bg-slate-900 px-2 py-2 shadow-[0_-8px_24px_rgba(2,6,23,0.35)]">
+      <div className="safe-area-bottom shrink-0 border-t border-indigo-400/15 bg-slate-900 px-2 pt-2 shadow-[0_-8px_24px_rgba(2,6,23,0.35)]">
         <div className="mx-auto flex w-full max-w-md items-center justify-around">
           {tabs.map((t) => {
             return (

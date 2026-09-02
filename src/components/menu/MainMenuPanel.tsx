@@ -102,7 +102,7 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
   }
 
   return (
-    <div className="relative min-h-svh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center px-4 pb-24 pt-8 sm:pb-12 sm:py-12">
+    <div className="safe-area-top safe-area-bottom relative min-h-dvh w-full overflow-hidden bg-slate-950 text-slate-100 flex flex-col items-center px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-8 sm:pb-12 sm:py-12">
       <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-72 max-w-3xl opacity-25" style={{ backgroundImage: "url('/role-duel.png')", backgroundPosition: 'center 18%', backgroundSize: 'cover', maskImage: 'linear-gradient(to bottom, black, transparent)' }} />
       <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-purple-600/15" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-cyan-500/10" />
@@ -148,7 +148,7 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
           </div>
         </div>
       )}
-      <nav className="fixed inset-x-3 bottom-3 z-40 mx-auto flex h-[4.25rem] max-w-sm items-center justify-between overflow-hidden rounded-[1.35rem] border border-indigo-300/30 bg-slate-950/95 px-2 shadow-2xl shadow-black/60 sm:hidden" aria-label="Mobil menü">
+      <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-[4.25rem] max-w-sm items-center justify-between overflow-hidden rounded-[1.35rem] border border-indigo-300/30 bg-slate-950/95 px-2 shadow-2xl shadow-black/60 sm:hidden" aria-label="Mobil menü">
         <MobileNavItem image="/brand-emblem.png" label="Ana Sayfa" active />
         <MobileNavItem image="/menu-icons/offline-play.png" label="Oyna" onClick={onPlay} primary />
         <button type="button" onClick={() => setQuickMenuOpen(!quickMenuOpen)} aria-label="Tüm menüleri aç" className={cn('relative -mt-8 flex h-16 w-16 shrink-0 flex-col items-center justify-end overflow-hidden rounded-full text-white transition-transform hover:scale-105', quickMenuOpen ? 'bg-fuchsia-950/90' : 'bg-transparent')}>
