@@ -348,6 +348,8 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
         Hazır · Offline oynanabilir · v0.1
       </motion.div>
 
+      <CreatorEasterEgg />
+
       {/* ─── Modal'lar ──────────────────────────────────────────────── */}
       <MarketProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <AchievementsModal open={achievementsOpen} onClose={() => setAchievementsOpen(false)} />
@@ -356,6 +358,51 @@ export function MainMenuPanel({ onPlay, onOnline, onJoinRoom }: MainMenuPanelPro
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={() => window.location.reload()} />
       <SocialModal open={socialOpen} onClose={() => setSocialOpen(false)} onJoinRoom={onJoinRoom} />
     </div>
+  )
+}
+
+function CreatorEasterEgg() {
+  const [visible, setVisible] = useState(false)
+  const [messageIndex, setMessageIndex] = useState(0)
+  const messages = [
+    'Tunahan burada mı? Sahtekârı bulmadan kaçma! 🕵️',
+    'Bu oyun Tunahan Yılmaztürk tarafından hazırlandı. Şüphelenmeye devam! 🎭',
+    'Yapımcı notu: En iyi blöf, kendinden emin yapılan blöftür. 😄',
+  ]
+
+  useEffect(() => {
+    let hideTimer: number | undefined
+    const show = () => {
+      setMessageIndex(Math.floor(Math.random() * messages.length))
+      setVisible(true)
+      hideTimer = window.setTimeout(() => setVisible(false), 8500)
+    }
+    const firstTimer = window.setTimeout(show, 9000)
+    const interval = window.setInterval(show, 30000)
+    return () => {
+      window.clearTimeout(firstTimer)
+      if (hideTimer) window.clearTimeout(hideTimer)
+      window.clearInterval(interval)
+    }
+  }, [messages.length])
+
+  if (!visible) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 12 }}
+      className="fixed inset-x-4 bottom-[6.3rem] z-30 mx-auto max-w-sm sm:bottom-6 sm:left-auto sm:right-6 sm:inset-x-auto"
+      role="status"
+      aria-live="polite"
+    >
+      <button type="button" onClick={() => { setMessageIndex((i) => (i + 1) % messages.length); setVisible(false) }} className="flex w-full items-center gap-3 rounded-2xl border border-fuchsia-400/30 bg-slate-950/95 px-4 py-3 text-left shadow-2xl shadow-fuchsia-950/30 ring-1 ring-white/10 transition-transform hover:-translate-y-0.5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-fuchsia-500/30 to-cyan-400/20 text-xl ring-1 ring-fuchsia-300/30">🧑‍💻</span>
+        <span className="min-w-0 flex-1"><span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-fuchsia-300">Yapımcı easter egg’i</span><span className="mt-0.5 block text-xs leading-4 text-slate-200">{messages[messageIndex]}</span></span>
+        <X className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+      </button>
+    </motion.div>
   )
 }
 
