@@ -221,6 +221,15 @@ create unique index if not exists idx_room_players_bot
   on public.room_players(room_id, bot_name)
   where is_bot = true;
 
+-- ─── ROOM BANS: host tarafından atılan oyuncuların kalıcı engeli ────────────
+create table if not exists public.room_bans (
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  banned_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (room_id, user_id)
+);
+
 -- ─── 10. ROOM CHAT ──────────────────────────────────────────────────────────
 
 create table if not exists public.room_chat (
@@ -523,13 +532,42 @@ drop policy if exists "room_players_delete_own" on public.room_players;
 create policy "room_players_select" on public.room_players for select using (true);
 -- Gerçek oyuncu: kendi user_id'si ile ekler; Bot: host olarak odasına bot ekler
 create policy "room_players_insert_own" on public.room_players for insert
-  with check (auth.uid() = user_id or (is_bot = true and user_id is null));
+  with check (
+    (
+      auth.uid() = user_id
+      and not exists (
+        select 1 from public.room_bans b
+        where b.room_id = room_players.room_id and b.user_id = auth.uid()
+      )
+    )
+    or (is_bot = true and user_id is null and exists (
+      select 1 from public.rooms r where r.id = room_players.room_id and r.host_id = auth.uid()
+    ))
+  );
 create policy "room_players_update_own" on public.room_players for update
   using (auth.uid() = user_id or is_bot = true)
   with check (auth.uid() = user_id or is_bot = true);
 -- Silme: kendi satırını silebilir veya host odasındaki botları silebilir
 create policy "room_players_delete_own" on public.room_players for delete
-  using (auth.uid() = user_id or is_bot = true);
+  using (
+    auth.uid() = user_id
+    or exists (select 1 from public.rooms r where r.id = room_players.room_id and r.host_id = auth.uid())
+  );
+
+alter table public.room_bans enable row level security;
+drop policy if exists "room_bans_select" on public.room_bans;
+drop policy if exists "room_bans_insert_host" on public.room_bans;
+drop policy if exists "room_bans_delete_host" on public.room_bans;
+create policy "room_bans_select" on public.room_bans for select using (true);
+create policy "room_bans_insert_host" on public.room_bans for insert
+  with check (
+    banned_by = auth.uid()
+    and user_id <> auth.uid()
+    and exists (select 1 from public.rooms r where r.id = room_bans.room_id and r.host_id = auth.uid())
+  );
+create policy "room_bans_delete_host" on public.room_bans for delete using (
+  exists (select 1 from public.rooms r where r.id = room_bans.room_id and r.host_id = auth.uid())
+);
 
 -- ─── ROOM CHAT: herkes görebilir, kendisi yazabilir
 alter table public.room_chat enable row level security;
@@ -619,6 +657,8 @@ grant select on public.room_players to authenticated;
 grant insert on public.room_players to authenticated;
 grant update on public.room_players to authenticated;
 grant delete on public.room_players to authenticated;
+-- Room Bans
+grant select, insert, delete on public.room_bans to authenticated;
 
 -- Room Chat
 grant select on public.room_chat to authenticated;

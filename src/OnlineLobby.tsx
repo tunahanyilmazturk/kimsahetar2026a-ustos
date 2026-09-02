@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, Copy, Link, Plus, Users, LogOut, Crown, Check,
   Settings as SettingsIcon, Share2, Send, MessageSquare, Search, RefreshCw, X,
-  Bot, Trash2,
+  Bot, Trash2, UserX,
 } from 'lucide-react'
 import { Button } from './components/common/Button'
 import { Avatar } from './components/common/Avatar'
@@ -156,6 +156,16 @@ export function OnlineLobby({
         .eq('room_id', activeRoomId)
 
       if (!roomPlayers) return
+
+      const myPlayer = roomPlayers.find((player) => player.user_id === user.id)
+      const { data: ban } = await supabase.from('room_bans').select('user_id').eq('room_id', activeRoomId).eq('user_id', user.id).maybeSingle()
+      if (ban || !myPlayer) {
+        setActiveRoom(null)
+        setActiveRoomId(null)
+        setPlayers([])
+        if (ban) toast.error('Bu odadan atıldın ve tekrar katılamazsın')
+        return
+      }
 
       if (roomPlayers.length === 0) {
         setPlayers([])
@@ -368,6 +378,17 @@ export function OnlineLobby({
         return
       }
 
+      const { data: ban } = await supabase
+        .from('room_bans')
+        .select('user_id')
+        .eq('room_id', room.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (ban) {
+        toast.error('Bu odadan atıldın; tekrar katılamazsın')
+        return
+      }
+
       // Önce oyuncu zaten odada mı kontrol et
       const { data: existing } = await supabase
         .from('room_players')
@@ -568,6 +589,31 @@ export function OnlineLobby({
       return
     }
     toast.info(`${botName} odadan çıkarıldı`)
+  }
+
+  // Host gerçek oyuncuyu odadan atar ve aynı oda için kalıcı ban kaydı oluşturur.
+  const kickPlayer = async (player: RoomPlayer) => {
+    if (!activeRoomId || !myUserId || !isHost || player.is_bot || player.user_id === myUserId) return
+    if (!window.confirm(`${player.username} odadan atılsın mı? Bu oyuncu aynı odaya tekrar katılamaz.`)) return
+
+    const { error: banError } = await supabase.from('room_bans').upsert({
+      room_id: activeRoomId,
+      user_id: player.user_id,
+      banned_by: myUserId,
+    })
+    if (banError) {
+      toast.error('Oyuncu atılamadı. Supabase şemasını güncellemen gerekebilir.')
+      return
+    }
+
+    const { error: removeError } = await supabase.from('room_players').delete()
+      .eq('room_id', activeRoomId)
+      .eq('user_id', player.user_id)
+    if (removeError) {
+      toast.error('Oyuncu odadan çıkarılamadı')
+      return
+    }
+    toast.success(`${player.username} odadan atıldı ve tekrar katılması engellendi`)
   }
 
   // ─── Oyunu başlat (host) ─────────────────────────────────────────────────
@@ -809,6 +855,11 @@ export function OnlineLobby({
                 {p.is_bot && <Bot className="h-4 w-4 text-indigo-400" />}
                 {p.is_host && <Crown className="h-4 w-4 text-amber-400" />}
                 {p.is_ready && <Check className="h-4 w-4 text-emerald-400" />}
+                {isHost && !p.is_bot && p.user_id !== myUserId && (
+                  <button type="button" onClick={() => void kickPlayer(p)} aria-label={`${p.username} odadan at`} className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300">
+                    <UserX className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {isHost && p.is_bot && (
                   <button
                     type="button"
